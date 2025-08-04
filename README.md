@@ -1,4 +1,10 @@
+<center>
+<img src="https://github.com/sunglocto/pi/blob/255bc3749c089e3945871ddf19dd17d14a83f9ff/pi.png">
+</center>
+
 # π
+[![Go](https://github.com/sunglocto/pi/actions/workflows/go.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/go.yml)
+
 
 Experimental and extremely weird XMPP client made with Go. No solicitors.
 
@@ -49,6 +55,9 @@ go build .
 vim pi.json
 ./pi
 ```
+> Uh, Windows???
+
+Eventually. Don't count on it.
 
 Static executable snapshots are also provided for GNU/Linux systems.
 
@@ -56,3 +65,20 @@ Static executable snapshots are also provided for GNU/Linux systems.
 (usage)
 
 TODO
+
+# επιπλέον
+(extra)
+
+Pi version numbers are the digits of Pi followed by a letter indicating the phase of development the program is in.
+
+For example, the version string:
+
+`3.14a`
+
+Is the third version produced in the alpha phase.
+
+The digits of Pi will reset back to `3` when moving to a new phase.
+
+If the number gets too long, it will reset to one digit of 2π. Once that gets to long, it will be digits of 3π and etc.
+
+Named after [Psi](https://github.com/psi-im/psi).
