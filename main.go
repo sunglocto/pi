@@ -6,15 +6,19 @@ import (
 	"image/color"
 	"io"
 	"log"
+	"net/url"
 	_ "net/url"
 	"os"
 	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
 	_ "fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/storage"
+	_ "fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	_ "fyne.io/x/fyne/theme"
@@ -25,6 +29,8 @@ import (
 	oasisSdk "pain.agency/oasis-sdk"
 )
 
+var version string = "3a"
+
 // by sunglocto
 // license AGPL
 
@@ -33,6 +39,7 @@ type Message struct {
 	Content string
 	ID      string
 	ReplyID string
+	ImageURL string
 	Raw     oasisSdk.XMPPChatMessage
 }
 
@@ -49,6 +56,7 @@ var tabs *container.AppTabs
 var selectedId widget.ListItemID
 var replying bool = false
 var notifications bool = true
+var connection bool = true
 
 type myTheme struct{}
 
@@ -99,13 +107,39 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 			author.TextStyle.Bold = true
 			content := widget.NewRichTextWithText("content")
 			content.Wrapping = fyne.TextWrapWord
-			return container.NewVBox(author, content)
+			icon := theme.FileImageIcon()
+			btn := widget.NewButtonWithIcon("View image", icon, func() {
+
+			})
+			return container.NewVBox(author, content, btn)
 		},
 		func(i widget.ListItemID, co fyne.CanvasObject) {
 			vbox := co.(*fyne.Container)
 			author := vbox.Objects[0].(*widget.Label)
 			content := vbox.Objects[1].(*widget.RichText)
-			content.ParseMarkdown(tabData.Messages[i].Content)
+			//image := vbox.Objects[2].(*canvas.Image)
+			btn := vbox.Objects[2].(*widget.Button)
+			btn.Hidden = true // Hide by default
+			msgContent := tabData.Messages[i].Content
+			if tabData.Messages[i].ImageURL != "" {
+			btn.Hidden = false
+			btn.OnTapped = func(){fyne.Do(func() {
+					u, _ := storage.ParseURI(tabData.Messages[i].ImageURL)
+					image := canvas.NewImageFromURI(u)
+					image.FillMode = canvas.ImageFillOriginal
+					dialog.ShowCustom("Image", "Close", image, w)
+			})}
+			}
+			// Check if the message is a quote
+			lines := strings.Split(msgContent, "\n")
+			for i, line := range lines {
+				if strings.HasPrefix(line, ">") {
+					lines[i] = "\n" + line + "\n"
+				}
+			}
+			msgContent = strings.Join(lines, "\n")
+
+			content.ParseMarkdown(msgContent)
 			if tabData.Messages[i].ReplyID != "PICLIENT:UNAVAILABLE" {
 				author.SetText(fmt.Sprintf("%s ↳ %s", tabData.Messages[i].Author, jid.MustParse(tabData.Messages[i].ReplyID).Resourcepart()))
 			} else {
@@ -117,6 +151,7 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 	scroller.OnSelected = func(id widget.ListItemID) {
 		selectedId = id
 	}
+
 	tabData.Scroller = scroller
 
 	chatTabs[mucJidStr] = tabData
@@ -141,12 +176,13 @@ func main() {
 	}
 	err = json.Unmarshal(bytes, &login)
 	if err != nil {
+		fyne.Do(func() {
 		a = app.New()
 		w = a.NewWindow("Error")
 		w.Resize(fyne.NewSize(500, 500))
 		dialog.ShowError(err, w)
 		w.ShowAndRun()
-		return
+		})
 	}
 
 	client, err := oasisSdk.CreateClient(
@@ -161,18 +197,22 @@ func main() {
 				if notifications {
 					a.SendNotification(fyne.NewNotification(fmt.Sprintf("%s says", userJidStr), str))
 				}
-				/*
-					if strings.Contains(str, "https://") {
-							fmt.Println("Attempting to do URL thingy")
-							s := strings.Split(str, " ")
-							for i, v := range s {
-								_, err := url.Parse(v)
-								if err == nil {
-									s[i] = fmt.Sprintf("[%s](%s)", v, v)
-								}
+				var img string = ""
+				if strings.Contains(str, "https://") {
+					lines := strings.Split(str, " ")
+					for i, line := range lines {
+						s := strings.Split(line, " ")
+						for j, v := range s {
+							_, err := url.Parse(v)
+							if err == nil && strings.HasPrefix(v, "https://") {
+								img = v
+								s[j] = fmt.Sprintf("[%s](%s)", v, v)
 							}
-							str = strings.Join(s, " ")
-					}*/
+						}
+						lines[i] = strings.Join(s, " ")
+					}
+					str = strings.Join(lines, " ")
+				}
 				var replyID string
 				if msg.Reply == nil {
 					replyID = "PICLIENT:UNAVAILABLE"
@@ -185,6 +225,7 @@ func main() {
 					ID:      msg.ID,
 					ReplyID: replyID,
 					Raw:     *msg,
+					ImageURL: img,
 				}
 
 				tab.Messages = append(tab.Messages, myMessage)
@@ -202,21 +243,25 @@ func main() {
 
 				str := *msg.CleanedBody
 				if notifications {
-					if strings.Contains(str, login.DisplayName) || (msg.Reply != nil && strings.Contains(msg.Reply.To, login.User)) {
+					if strings.Contains(str, login.DisplayName) || (msg.Reply != nil && strings.Contains(msg.Reply.To, login.DisplayName)) {
 						a.SendNotification(fyne.NewNotification(fmt.Sprintf("Mentioned in %s", mucJidStr), str))
 					}
 				}
-				/*
-					if strings.Contains(str, "https://") {
-							s := strings.Split(str, " ")
-							for i, v := range s {
-								_, err := url.Parse(v)
-								if err == nil {
-									s[i] = fmt.Sprintf("[%s](%s)", v, v)
-								}
+				if strings.Contains(str, "https://") {
+					lines := strings.Split(str, " ")
+					for i, line := range lines {
+						s := strings.Split(line, " ")
+						for j, v := range s {
+							_, err := url.Parse(v)
+							if err == nil && strings.HasPrefix(v, "https://") {
+								s[j] = fmt.Sprintf("[%s](%s)", v, v)
 							}
-							str = strings.Join(s, " ")
-					}*/
+						}
+						lines[i] = strings.Join(s, " ")
+					}
+					str = strings.Join(lines, " ")
+					fmt.Println(str)
+				}
 				fmt.Println(msg.ID)
 				var replyID string
 				if msg.Reply == nil {
@@ -264,9 +309,19 @@ func main() {
 	}
 
 	go func() {
-		err = client.Connect()
-		if err != nil {
-			log.Fatalln("Could not connect - " + err.Error())
+		for connection {
+			err = client.Connect()
+			if err != nil {
+				responseChan := make(chan bool)
+				fyne.Do(func() {
+					dialog.ShowConfirm("disconnected", fmt.Sprintf("the client disconnected. would you like to try and reconnect?\nreason:\n%s", err.Error()), func(b bool) {
+						responseChan <- b
+					}, w)
+				})
+				if !<-responseChan {
+					connection = false
+				}
+			}
 		}
 	}()
 
@@ -277,6 +332,8 @@ func main() {
 
 	entry := widget.NewMultiLineEntry()
 	entry.SetPlaceHolder("Say something, you know you want to.")
+	entry.OnChanged = func(s string) {
+	}
 
 	sendbtn := widget.NewButton("Send", func() {
 		text := entry.Text
@@ -345,22 +402,23 @@ func main() {
 		entry.SetText("")
 	})
 
-	mit := fyne.NewMenuItem("About pi", func() {
-		dialog.ShowInformation("About pi", "the XMPP client from hell\n\npi is an experimental XMPP client\nwritten by Sunglocto in Go.", w)
+
+	mit := fyne.NewMenuItem("about pi", func() {
+		dialog.ShowInformation("about pi", fmt.Sprintf("the XMPP client from hell\n\npi is an experimental XMPP client\nwritten by Sunglocto in Go.\n\nVersion %s", version), w)
 	})
 
-	mia := fyne.NewMenuItem("Configure message view", func() {
+	mia := fyne.NewMenuItem("configure message view", func() {
 		ch := widget.NewCheck("", func(b bool) {})
 		ch2 := widget.NewCheck("", func(b bool) {})
 		ch.Checked = scrollDownOnNewMessage
 		ch2.Checked = notifications
-		scrollView := widget.NewFormItem("Scroll to bottom on new message", ch)
-		notiView := widget.NewFormItem("Send notifications when mentioned", ch2)
+		scrollView := widget.NewFormItem("scroll to bottom on new message", ch)
+		notiView := widget.NewFormItem("send notifications when mentioned", ch2)
 		items := []*widget.FormItem{
 			scrollView,
 			notiView,
 		}
-		dialog.ShowForm("Configure message view", "Apply", "Cancel", items, func(b bool) {
+		dialog.ShowForm("configure message view", "apply", "cancel", items, func(b bool) {
 			if b {
 				scrollDownOnNewMessage = ch.Checked
 				notifications = ch2.Checked
@@ -368,8 +426,8 @@ func main() {
 		}, w)
 	})
 
-	mis := fyne.NewMenuItem("Clear chat window", func() {
-		dialog.ShowConfirm("Clear chat window", "Are you sure you want to clear the chat window?", func(b bool) {
+	mis := fyne.NewMenuItem("clear chat window", func() {
+		dialog.ShowConfirm("clear chat window", "are you sure you want to clear the chat window?", func(b bool) {
 			if b {
 				fmt.Println("clearing chat")
 			}
@@ -384,7 +442,7 @@ func main() {
 			widget.NewFormItem("MUC address", roomEntry),
 		}
 
-		dialog.ShowForm("Join a MUC", "Join", "Cancel", items, func(b bool) {
+		dialog.ShowForm("join a MUC", "join", "cancel", items, func(b bool) {
 			if b {
 				roomJid, err := jid.Parse(roomEntry.Text)
 				if err != nil {
@@ -404,7 +462,7 @@ func main() {
 		}, w)
 	})
 
-	mic := fyne.NewMenuItem("Upload a file", func() {
+	mic := fyne.NewMenuItem("upload a file", func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
 			if err != nil {
 				dialog.ShowError(err, w)
@@ -416,14 +474,14 @@ func main() {
 				return
 			}
 			a.Clipboard().SetContent(link)
-			dialog.ShowInformation("File successfully uploaded", link, w)
+			dialog.ShowInformation("file successfully uploaded\nURL copied to your clipboard", link, w)
 		}, w)
 	})
 
 	menu_help := fyne.NewMenu("π", mit)
 	menu_changeroom := fyne.NewMenu("β", mib, mic)
 	menu_configureview := fyne.NewMenu("γ", mia, mis)
-	bit := fyne.NewMenuItem("Mark message as read", func() {
+	bit := fyne.NewMenuItem("mark selected message as read", func() {
 		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
 		if !ok {
 			return
@@ -440,7 +498,7 @@ func main() {
 		client.MarkAsRead(&m)
 	})
 
-	bia := fyne.NewMenuItem("Toggle replying to message", func() {
+	bia := fyne.NewMenuItem("toggle replying to message", func() {
 		replying = !replying
 	})
 	menu_messageoptions := fyne.NewMenu("Σ", bit, bia)
@@ -448,7 +506,15 @@ func main() {
 	w.SetMainMenu(ma)
 
 	tabs = container.NewAppTabs(
-		container.NewTabItem("τίποτα", widget.NewRichTextFromMarkdown("# No chat selected.")),
+		container.NewTabItem("τίποτα", widget.NewLabel(`
+		welcome to pi
+
+		you are currently not focused on any rooms.
+		you can add new rooms by editing your pi.json file.
+		in order to change application settings, refer to the tab-menu with the Greek letters. 
+		these buttons allow you to configure the application as well as other functions.
+		for more information about the pi project itself, hit the π button.
+		`)),
 	)
 
 	for _, mucJidStr := range login.MucsToJoin {
@@ -466,6 +532,6 @@ func main() {
 		}
 	}
 
-	w.SetContent(container.NewVSplit(tabs, container.NewHSplit(entry, sendbtn)))
+	w.SetContent(container.NewVSplit(container.NewVSplit(tabs, container.NewHSplit(entry, sendbtn)), widget.NewLabel("pi")))
 	w.ShowAndRun()
 }
