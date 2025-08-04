@@ -22,7 +22,8 @@ In order to use pi, you currently have to create a `pi.json` file in the working
     "DisplayName":"user",
     "NoTLS":false,
     "StartTLS":true,
-    "Mucs":["room@muc.example.com"]}
+    "Mucs":["room@muc.example.com"]
+}
 ```
 
 Edit this file as necessary.
