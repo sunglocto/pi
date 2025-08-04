@@ -80,3 +80,5 @@ Is the third version produced in the alpha phase.
 The digits of Pi will reset back to `3` when moving to a new phase.
 
 If the number gets too long, it will reset to one digit of 2π. Once that gets to long, it will be digits of 3π and etc.
+
+Named after [Psi](https://github.com/psi-im/psi).
