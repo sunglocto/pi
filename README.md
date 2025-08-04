@@ -63,8 +63,13 @@ TODO
 (extra)
 
 Pi version numbers are the digits of Pi followed by a letter indicating the phase of development the program is in.
+
 For example, the version string:
+
 `3.14a`
+
 Is the third version produced in the alpha phase.
+
 The digits of Pi will reset back to `3` when moving to a new phase.
-If the number gets too long, it will be digits of 2π, 3π etc.
+
+If the number gets too long, it will reset to one digit of 2π. Once that gets to long, it will be digits of 3π and etc.
