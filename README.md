@@ -1,4 +1,6 @@
 # π
+[![Go](https://github.com/sunglocto/pi/actions/workflows/go.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/go.yml)
+
 
 Experimental and extremely weird XMPP client made with Go. No solicitors.
 
