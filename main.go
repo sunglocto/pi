@@ -7,18 +7,14 @@ import (
 	"io"
 	"log"
 	"net/url"
-	_ "net/url"
 	"os"
 	"strings"
-
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
-	_ "fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/storage"
-	_ "fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	_ "fyne.io/x/fyne/theme"
@@ -117,7 +113,6 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 			vbox := co.(*fyne.Container)
 			author := vbox.Objects[0].(*widget.Label)
 			content := vbox.Objects[1].(*widget.RichText)
-			//image := vbox.Objects[2].(*canvas.Image)
 			btn := vbox.Objects[2].(*widget.Button)
 			btn.Hidden = true // Hide by default
 			msgContent := tabData.Messages[i].Content
@@ -286,7 +281,6 @@ func main() {
 			}
 		},
 		func(_ *oasisSdk.XmppClient, from jid.JID, state oasisSdk.ChatState) {
-			//fromStr := from.String()
 			switch state {
 			case oasisSdk.ChatStateActive:
 			case oasisSdk.ChatStateComposing:
@@ -433,7 +427,7 @@ func main() {
 			}
 		}, w)
 	})
-	mib := fyne.NewMenuItem("Join a room", func() {
+	/*mib := fyne.NewMenuItem("Join a room", func() {
 		nickEntry := widget.NewEntry()
 		nickEntry.SetText(login.DisplayName)
 		roomEntry := widget.NewEntry()
@@ -460,7 +454,7 @@ func main() {
 				addChatTab(true, roomJid, nick)
 			}
 		}, w)
-	})
+	})*/
 
 	mic := fyne.NewMenuItem("upload a file", func() {
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
@@ -479,7 +473,7 @@ func main() {
 	})
 
 	menu_help := fyne.NewMenu("π", mit)
-	menu_changeroom := fyne.NewMenu("β", mib, mic)
+	menu_changeroom := fyne.NewMenu("β", mic)
 	menu_configureview := fyne.NewMenu("γ", mia, mis)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
 		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
