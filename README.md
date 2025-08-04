@@ -55,6 +55,9 @@ go build .
 vim pi.json
 ./pi
 ```
+> Uh, Windows???
+
+Eventually. Don't count on it.
 
 Static executable snapshots are also provided for GNU/Linux systems.
 
