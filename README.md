@@ -4,7 +4,7 @@
 
 # π
 [![Go](https://github.com/sunglocto/pi/actions/workflows/go.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/go.yml)
-
+## the XMPP client from hell
 
 Experimental and extremely weird XMPP client made with Go. No solicitors.
 
@@ -18,21 +18,34 @@ pi is an extremely opinionated client. It aims to have as little extra windows a
 ## διαμόρφωση
 (configuration)
 
-In order to use pi, you currently have to create a `pi.json` file in the working directory of the executable. Here is how one looks like:
+In order to use pi, you currently have to create a `pi.json` file in the working directory of the executable. Here is how one looks like as of time of writing:
 
 ```json
 {
-    "Host":"example.com:5222",
-    "User":"user@example.com",
-    "Password":"123456",
-    "DisplayName":"user",
-    "NoTLS":false,
-    "StartTLS":true,
-    "Mucs":["room@muc.example.com"]
+	"Login": {
+		"Host": "example.com:5222",
+		"User": "user@example.com",
+		"Password": "123456",
+		"DisplayName": "user",
+		"NoTLS": false,
+		"StartTLS": true,
+		"Mucs": [
+			"room1@group.example.com",
+			"room2@group.example.com"
+		]
+	},
+	"DMs": [
+		"mike@example.com",
+		"louis@example.com"
+	],
+	"Notifications": false
 }
 ```
 
 Edit this file as necessary.
+
+A login screen will be implemented in pi 3.1a.
+
 
 Currently joining and saving DM tabs is not supported, nor is getting avatars, reactions, encryption of media embed.
 
