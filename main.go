@@ -22,11 +22,10 @@ import (
 	catppuccin "github.com/mbaklor/fyne-catppuccin"
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
-	"mellium.im/xmpp/stanza"
 	oasisSdk "pain.agency/oasis-sdk"
 )
 
-var version string = "3a"
+var version string = "3.1a"
 
 // by sunglocto
 // license AGPL
@@ -427,22 +426,8 @@ func main() {
 				client.ReplyToEvent(&m, text)
 				return
 			}
-			var typ stanza.MessageType
-			if isMuc {
-				typ = stanza.GroupChatMessage
-			} else {
-				typ = stanza.ChatMessage
-			}
-			msg := oasisSdk.XMPPChatMessage{
-				Message: stanza.Message{
-					To:   jid.MustParse(activeMucJid),
-					Type: typ,
-				},
-				ChatMessageBody: oasisSdk.ChatMessageBody{
-					Body: &text,
-				},
-			}
-			err := client.Session.Encode(client.Ctx, msg)
+
+			err = client.SendText(jid.MustParse(activeMucJid), text)
 			if err != nil {
 				dialog.ShowError(err, w)
 			}
