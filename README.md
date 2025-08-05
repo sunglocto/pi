@@ -3,7 +3,7 @@
 </center>
 
 # π
-[![Go](https://github.com/sunglocto/pi/actions/workflows/go.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/go.yml)
+[![build this now](https://github.com/sunglocto/pi/actions/workflows/go.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/go.yml)
 ## the XMPP client from hell
 > it's 10% code. 20% ai
 
@@ -39,7 +39,7 @@ If you want to add MUCs or DMs, you must configure the program by editing the pi
 </piConfig>
 ```
 
-Currently joining and saving DM tabs is not supported, nor is getting avatars, reactions, encryption of media embed.
+Currently joining and saving DM tabs is not supported, nor is getting avatars, reactions or encryption.
 
 As of writing, pi supports basic message sending and receiving, replies and ~~file upload~~.
 
@@ -64,7 +64,7 @@ go build .
 Eventually. Don't count on it.
 Fyne has first-class support for Windows and none of my dependencies are platform dependent. I've built this app for Android before. If you compile it, it will most likely work with no issues.
 
-Static executable snapshots are also provided for GNU/Linux systems.
+Static executable snapshots are also provided for GNU/Linux systems, and CI runs on every commit, producing a binary on every successful build. You're welcome.
 
 
 ## υποστήριξη
@@ -101,6 +101,6 @@ Is the third version produced in the alpha phase.
 
 The digits of Pi will reset back to `3` when moving to a new phase.
 
-If the number gets too long, it will reset to one digit of 2π. Once that gets to long, it will be digits of 3π and etc.
+If the number gets too long, it will reset to one digit of 2π. Once that gets too long, it will be digits of 3π and etc.
 
 Named after [Psi](https://github.com/psi-im/psi).
