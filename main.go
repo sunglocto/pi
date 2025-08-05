@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"encoding/xml"
 	"fmt"
 	"image/color"
@@ -21,6 +20,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	catppuccin "github.com/mbaklor/fyne-catppuccin"
+	_ "fyne.io/x/fyne/theme"
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
 	oasisSdk "pain.agency/oasis-sdk"
@@ -142,14 +142,14 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 			lines := strings.Split(msgContent, "\n")
 			for i, line := range lines {
 				if strings.HasPrefix(line, ">") {
-					lines[i] = "\n" + line + "\n"
+					lines[i] = fmt.Sprintf("\n %s \n", line)
 				}
 			}
 			msgContent = strings.Join(lines, "\n")
 
 			content.ParseMarkdown(msgContent)
 			if tabData.Messages[i].ReplyID != "PICLIENT:UNAVAILABLE" {
-				author.SetText(fmt.Sprintf("%s ↳ %s", tabData.Messages[i].Author, jid.MustParse(tabData.Messages[i].ReplyID).Resourcepart()))
+				author.SetText(fmt.Sprintf("%s > %s", tabData.Messages[i].Author, jid.MustParse(tabData.Messages[i].ReplyID).Resourcepart()))
 			} else {
 				author.SetText(tabData.Messages[i].Author)
 			}
@@ -173,7 +173,7 @@ func dropToSignInPage(reason string) {
 	w = a.NewWindow("Welcome to Pi")
 	w.Resize(fyne.NewSize(500, 500))
 	rt := widget.NewRichTextFromMarkdown("# Welcome to pi\nIt appears you do not have a valid account configured. Let's create one!")
-	footer := widget.NewRichTextFromMarkdown(fmt.Sprintf("Reason for being dropped to the sign-in page:\n\n```%s```", reason))
+	footer := widget.NewRichTextFromMarkdown(fmt.Sprintf("Reason for being dropped to the sign-in page:\n\n```%s```\n\nDEBUG: %s", reason, fmt.Sprint(os.DirFS("."))))
 	userEntry := widget.NewEntry()
 	userEntry.SetPlaceHolder("Your JID")
 	serverEntry := widget.NewEntry()
@@ -204,14 +204,22 @@ func dropToSignInPage(reason string) {
 				config.Login.DisplayName = nicknameEntry.Text
 				config.Notifications = true
 
-				bytes, err := json.MarshalIndent(config, "", "	")
+				bytes, err := xml.MarshalIndent(config, "", "	")
 				if err != nil {
 					dialog.ShowError(err, w)
 					return
 				}
 
-				os.Create("pi.json")
-				os.WriteFile("pi.json", bytes, os.FileMode(os.O_RDWR)) // TODO: See if this works on non-unix like systems
+				_, err = os.Create("pi.xml")
+				if err != nil {
+					dialog.ShowError(err, w)
+					return
+				}
+				err = os.WriteFile("pi.xml", bytes, os.FileMode(os.O_RDWR)) // TODO: See if this works on non-unix like systems
+				if err != nil {
+					dialog.ShowError(err, w)
+					return
+				}
 				a.SendNotification(fyne.NewNotification("Done", "Relaunch the application"))
 				w.Close()
 			}
@@ -229,15 +237,15 @@ func main() {
 
 	config = piConfig{}
 
-	bytes, err := os.ReadFile("./pi.json")
+	bytes, err := os.ReadFile("./pi.xml")
 	if err != nil {
 		dropToSignInPage(err.Error())
 		return
 	}
 
-	err = json.Unmarshal(bytes, &config)
+	err = xml.Unmarshal(bytes, &config)
 	if err != nil {
-		dropToSignInPage(fmt.Sprintf("Your pi.json file is invalid:\n%s", err.Error()))
+		dropToSignInPage(fmt.Sprintf("Your pi.xml file is invalid:\n%s", err.Error()))
 		return
 	}
 

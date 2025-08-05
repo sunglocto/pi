@@ -20,28 +20,22 @@ pi is an extremely opinionated client. It aims to have as little extra windows a
 
 When you launch pi, you will be greeted with a create account screen. You will then be able to enter your XMPP account details and then relaunch the application to log in.
 
-If you want to add MUCs or DMs, you must configure the program. Here is the general idea:
+If you want to add MUCs or DMs, you must configure the program by editing the pi.xml file. Here is the general idea:
 
-```json
-{
-	"Login": {
-		"Host": "example.com:5222",
-		"User": "user@example.com",
-		"Password": "123456",
-		"DisplayName": "user",
-		"NoTLS": false,
-		"StartTLS": true,
-		"Mucs": [
-			"room1@group.example.com",
-			"room2@group.example.com"
-		]
-	},
-	"DMs": [
-		"mike@example.com",
-		"louis@example.com"
-	],
-	"Notifications": false
-}
+```xml
+<piConfig>
+	<Login>
+		<Host>example.com:5222</Host>
+		<User>user@example.com</User>
+		<Password>123456789</Password>
+		<DisplayName>sunglocto</DisplayName>
+		<TLSoff>false</TLSoff>
+		<StartTLS>true</StartTLS>
+		<MucsToJoin>room1@muc.example.com</MucsToJoin>
+		<MucsToJoin>room2@muc.example.com</MucsToJoin>
+	</Login>
+	<Notifications>true</Notifications>
+</piConfig>
 ```
 
 Edit this file as necessary.
