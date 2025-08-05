@@ -26,12 +26,14 @@ import (
 	oasisSdk "pain.agency/oasis-sdk"
 
 	// gui - optional
-	catppuccin "github.com/mbaklor/fyne-catppuccin"
-	fyneVideo "github.com/metal3d/fyne-streamer/video"
+	// catppuccin "github.com/mbaklor/fyne-catppuccin"
+	adwaita "fyne.io/x/fyne/theme"
+	// TODO: integrated theme switcher
 )
 
 var version string = "3.1a"
-
+var statBar widget.Label
+var chatInfo fyne.Container
 // by sunglocto
 // license AGPL
 
@@ -50,6 +52,7 @@ type MucTab struct {
 	Messages []Message
 	Scroller *widget.List
 	isMuc    bool
+	Muc *muc.Channel
 }
 
 type piConfig struct {
@@ -72,7 +75,7 @@ var connection bool = true
 type myTheme struct{}
 
 func (m myTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
-	return catppuccin.New().Color(name, variant)
+	return adwaita.AdwaitaTheme().Color(name, variant) 
 }
 
 func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
@@ -118,8 +121,8 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 			author.TextStyle.Bold = true
 			content := widget.NewRichTextWithText("content")
 			content.Wrapping = fyne.TextWrapWord
-			icon := theme.FileImageIcon()
-			btn := widget.NewButtonWithIcon("View image", icon, func() {
+			icon := theme.FileVideoIcon()
+			btn := widget.NewButtonWithIcon("View media", icon, func() {
 
 			})
 			return container.NewVBox(author, content, btn)
@@ -135,7 +138,20 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 				btn.Hidden = false
 				btn.OnTapped = func() {
 					fyne.Do(func() {
-						u, _ := storage.ParseURI(tabData.Messages[i].ImageURL)
+						u, err := storage.ParseURI(tabData.Messages[i].ImageURL)
+						if err != nil {
+							dialog.ShowError(err, w)
+							return
+						}
+						if strings.HasSuffix(tabData.Messages[i].ImageURL, "mp4") {
+							url, err := url.Parse(tabData.Messages[i].ImageURL)
+							if err != nil {
+								dialog.ShowError(err, w)
+								return
+							}
+							a.OpenURL(url)
+							return
+						}
 						image := canvas.NewImageFromURI(u)
 						image.FillMode = canvas.ImageFillOriginal
 						dialog.ShowCustom("Image", "Close", image, w)
@@ -177,7 +193,7 @@ func dropToSignInPage(reason string) {
 	w = a.NewWindow("Welcome to Pi")
 	w.Resize(fyne.NewSize(500, 500))
 	rt := widget.NewRichTextFromMarkdown("# Welcome to pi\nIt appears you do not have a valid account configured. Let's create one!")
-	footer := widget.NewRichTextFromMarkdown(fmt.Sprintf("Reason for being dropped to the sign-in page:\n\n```%s```\n\nDEBUG: %s", reason, fmt.Sprint(os.DirFS("."))))
+	footer := widget.NewRichTextFromMarkdown(fmt.Sprintf("Reason for being dropped to the sign-in page:\n\n```%s```", reason))
 	userEntry := widget.NewEntry()
 	userEntry.SetPlaceHolder("Your JID")
 	serverEntry := widget.NewEntry()
@@ -277,8 +293,10 @@ func main() {
 						for j, v := range s {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
-								img = v
 								s[j] = fmt.Sprintf("[%s](%s)", v, v)
+								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jp") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
+									img = v
+								}
 							}
 						}
 						lines[i] = strings.Join(s, " ")
@@ -309,11 +327,11 @@ func main() {
 				})
 			}
 		},
-		func(client *oasisSdk.XmppClient, _ *muc.Channel, msg *oasisSdk.XMPPChatMessage) {
+		func(client *oasisSdk.XmppClient, muc *muc.Channel, msg *oasisSdk.XMPPChatMessage) {
 			var ImageID string = ""
 			mucJidStr := msg.From.Bare().String()
 			if tab, ok := chatTabs[mucJidStr]; ok {
-
+				chatTabs[mucJidStr].Muc = muc
 				str := *msg.CleanedBody
 				if notifications {
 					if strings.Contains(str, login.DisplayName) || (msg.Reply != nil && strings.Contains(msg.Reply.To, login.DisplayName)) {
@@ -328,7 +346,7 @@ func main() {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
 								s[j] = fmt.Sprintf("[%s](%s)", v, v)
-								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jp") || strings.HasSuffix(v, ".webp") {
+								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jp") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
 									ImageID = v
 								}
 							}
@@ -365,11 +383,30 @@ func main() {
 		func(_ *oasisSdk.XmppClient, from jid.JID, state oasisSdk.ChatState) {
 			switch state {
 			case oasisSdk.ChatStateActive:
+				fyne.Do(func() {
+					statBar.SetText(fmt.Sprintf("%s is active", from.Resourcepart()))
+				})
 			case oasisSdk.ChatStateComposing:
+				fyne.Do(func() {
+					statBar.SetText(fmt.Sprintf("%s is typing...", from.Resourcepart()))
+				})
 			case oasisSdk.ChatStatePaused:
+
+				fyne.Do(func() {
+					statBar.SetText(fmt.Sprintf("%s has stoped typing.", from.Resourcepart()))
+				})
 			case oasisSdk.ChatStateInactive:
+				fyne.Do(func() {
+					statBar.SetText(fmt.Sprintf("%s is idle", from.Resourcepart()))
+				})
 			case oasisSdk.ChatStateGone:
+				fyne.Do(func() {
+					statBar.SetText(fmt.Sprintf("%s is gone", from.Resourcepart()))
+				})
 			default:
+				fyne.Do(func() {
+					statBar.SetText(fmt.Sprint("Unknown state: ", state))
+				})
 			}
 		},
 		func(_ *oasisSdk.XmppClient, from jid.JID, id string) {
@@ -379,7 +416,6 @@ func main() {
 			fmt.Printf("%s has seen %s", from.String(), id)
 		},
 	)
-
 	if err != nil {
 		log.Fatalln("Could not create client - " + err.Error())
 	}
@@ -437,7 +473,6 @@ func main() {
 		}
 
 		go func() {
-			//TODO: Fix message hack until jjj adds message sending
 			if replying {
 				m := chatTabs[activeMucJid].Messages[selectedId].Raw
 				client.ReplyToEvent(&m, text)
@@ -680,6 +715,29 @@ func main() {
 		}
 	}
 
-	w.SetContent(container.NewVSplit(container.NewVSplit(tabs, container.NewHSplit(entry, sendbtn)), widget.NewLabel("pi")))
+	tabs.OnSelected = func(ti *container.TabItem) {
+	selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		if !ok {
+			return
+		}
+
+		var activeChatJid string
+		for jid, tabData := range chatTabs {
+			if tabData.Scroller == selectedScroller {
+				activeChatJid = jid
+				break
+			}
+		}
+
+		tab := chatTabs[activeChatJid]
+		if tab.isMuc {
+			chatInfo = *container.NewHBox(widget.NewLabel(tab.Muc.Addr().String()))
+		} else {
+			chatInfo = *container.NewHBox(widget.NewLabel(tab.Jid.String()))
+		}
+	}
+
+	statBar.SetText("nothing seems to be happening right now...")
+	w.SetContent(container.NewVSplit(container.NewVSplit(tabs, container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar,&chatInfo)))
 	w.ShowAndRun()
 }
