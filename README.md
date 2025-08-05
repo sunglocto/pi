@@ -58,12 +58,12 @@ git clone https://github.com/sunglocto/pi
 cd pi
 go mod tidy
 go build .
-vim pi.json
 ./pi
 ```
 > Uh, Windows???
 
 Eventually. Don't count on it.
+Fyne has first-class support for Windows and none of my dependencies are platform dependent. I've built this app for Android before. If you compile it, it will most likely work with no issues.
 
 Static executable snapshots are also provided for GNU/Linux systems.
 
@@ -71,6 +71,13 @@ Static executable snapshots are also provided for GNU/Linux systems.
 (usage)
 
 TODO
+
+# υποστήριξη
+(support)
+
+You can file an issue and explain the problem you are having.
+
+If you would like a more instant method of communication, join the [pi XMPP room.](xmpp:pi@room.sunglocto.net?join)
 
 # επιπλέον
 (extra)
