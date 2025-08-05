@@ -5,10 +5,11 @@
 # π
 [![Go](https://github.com/sunglocto/pi/actions/workflows/go.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/go.yml)
 ## the XMPP client from hell
+> it's 10% code. 20% ai
 
-Experimental and extremely weird XMPP client made with Go. No solicitors.
+Experimental and extremely weird XMPP client written in Go. No solicitors.
 
-pi is currently pre-pre-pre-pre alpha software which you should not use right now.
+pi is currently pre-pre-pre-pre alpha software which you should not use as your primary XMPP client.
 
 pi uses [Fyne](https://fyne.io) for the frontend and uses the [Oasis SDK](https://github.com/jjj333-p/oasis-sdk) for XMPP functionality.
 
@@ -20,7 +21,7 @@ pi is an extremely opinionated client. It aims to have as little extra windows a
 
 When you launch pi, you will be greeted with a create account screen. You will then be able to enter your XMPP account details and then relaunch the application to log in.
 
-If you want to add MUCs or DMs, you must configure the program by editing the pi.xml file. Here is the general idea:
+If you want to add MUCs or DMs, you must configure the program by editing the pi.xml file. Here is an example configuration:
 
 ```xml
 <piConfig>
@@ -38,11 +39,9 @@ If you want to add MUCs or DMs, you must configure the program by editing the pi
 </piConfig>
 ```
 
-Edit this file as necessary.
-
 Currently joining and saving DM tabs is not supported, nor is getting avatars, reactions, encryption of media embed.
 
-As of writing, pi supports basic message sending and receiving, replies and file upload.
+As of writing, pi supports basic message sending and receiving, replies and ~~file upload~~.
 
 
 ## να χτίσω 
@@ -67,19 +66,29 @@ Fyne has first-class support for Windows and none of my dependencies are platfor
 
 Static executable snapshots are also provided for GNU/Linux systems.
 
-## χρήση
-(usage)
 
-TODO
-
-# υποστήριξη
+## υποστήριξη
 (support)
 
 You can file an issue and explain the problem you are having.
 
 If you would like a more instant method of communication, join the [pi XMPP room.](xmpp:pi@room.sunglocto.net?join)
 
-# επιπλέον
+## μαρτυρίες
+(testimonials)
+From fellow insane and schizophrenic XMPP users:
+
+> anyways this is your "just IM" client things ig.
+
+> this looks like shit
+
+> fyne is the best UI toolkit (sarcastic)
+
+> i am going to explode you
+
+> pi devstream when
+
+## επιπλέον
 (extra)
 
 Pi version numbers are the digits of Pi followed by a letter indicating the phase of development the program is in.
