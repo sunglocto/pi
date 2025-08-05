@@ -169,59 +169,59 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 }
 
 func dropToSignInPage(reason string) {
-		a = app.New()
-		w = a.NewWindow("Welcome to Pi")
-		w.Resize(fyne.NewSize(500, 500))
-		rt := widget.NewRichTextFromMarkdown("# Welcome to pi\nIt appears you do not have a valid account configured. Let's create one!")
-		footer := widget.NewRichTextFromMarkdown(fmt.Sprintf("Reason for being dropped to the sign-in page:\n\n```%s```", reason))
-		userEntry := widget.NewEntry()
-		userEntry.SetPlaceHolder("Your JID")
-		serverEntry := widget.NewEntry()
-		serverEntry.SetPlaceHolder("Server and port")
-		passwordEntry := widget.NewPasswordEntry()
-		passwordEntry.SetPlaceHolder("Your Password")
-		nicknameEntry := widget.NewEntry()
-		nicknameEntry.SetPlaceHolder("Your Nickname")
+	a = app.New()
+	w = a.NewWindow("Welcome to Pi")
+	w.Resize(fyne.NewSize(500, 500))
+	rt := widget.NewRichTextFromMarkdown("# Welcome to pi\nIt appears you do not have a valid account configured. Let's create one!")
+	footer := widget.NewRichTextFromMarkdown(fmt.Sprintf("Reason for being dropped to the sign-in page:\n\n```%s```", reason))
+	userEntry := widget.NewEntry()
+	userEntry.SetPlaceHolder("Your JID")
+	serverEntry := widget.NewEntry()
+	serverEntry.SetPlaceHolder("Server and port")
+	passwordEntry := widget.NewPasswordEntry()
+	passwordEntry.SetPlaceHolder("Your Password")
+	nicknameEntry := widget.NewEntry()
+	nicknameEntry.SetPlaceHolder("Your Nickname")
 
-		userView := widget.NewFormItem("", userEntry)
-		serverView := widget.NewFormItem("", serverEntry)
-		passwordView := widget.NewFormItem("", passwordEntry)
-		nicknameView := widget.NewFormItem("", nicknameEntry)
-		items := []*widget.FormItem{
-			serverView,
-			userView,
-			passwordView,
-			nicknameView,
-		}
+	userView := widget.NewFormItem("", userEntry)
+	serverView := widget.NewFormItem("", serverEntry)
+	passwordView := widget.NewFormItem("", passwordEntry)
+	nicknameView := widget.NewFormItem("", nicknameEntry)
+	items := []*widget.FormItem{
+		serverView,
+		userView,
+		passwordView,
+		nicknameView,
+	}
 
-		btn := widget.NewButton("Create an account", func() {
-			dialog.ShowForm("Create an account", "Create", "Dismiss", items, func(b bool) {
-				if b {
-					config := piConfig{}
-					config.Login.Host = serverEntry.Text
-					config.Login.User = userEntry.Text
-					config.Login.Password = passwordEntry.Text
-					config.Login.DisplayName = nicknameEntry.Text
-					config.Notifications = true
+	btn := widget.NewButton("Create an account", func() {
+		dialog.ShowForm("Create an account", "Create", "Dismiss", items, func(b bool) {
+			if b {
+				config := piConfig{}
+				config.Login.Host = serverEntry.Text
+				config.Login.User = userEntry.Text
+				config.Login.Password = passwordEntry.Text
+				config.Login.DisplayName = nicknameEntry.Text
+				config.Notifications = true
 
-					bytes, err := json.MarshalIndent(config, "", "	")
-					if err != nil {
-						dialog.ShowError(err, w)
-						return
-					}
-
-					os.Create("pi.json")
-					os.WriteFile("pi.json", bytes, os.FileMode(os.O_RDWR)) // TODO: See if this works on non-unix like systems
-					a.SendNotification(fyne.NewNotification("Done", "Relaunch the application"))
-					w.Close()
+				bytes, err := json.MarshalIndent(config, "", "	")
+				if err != nil {
+					dialog.ShowError(err, w)
+					return
 				}
-			}, w)
-		})
-		btn2 := widget.NewButton("Close pi", func() {
-			w.Close()
-		})
-		w.SetContent(container.NewVBox(rt, btn, btn2,footer))
-		w.ShowAndRun()
+
+				os.Create("pi.json")
+				os.WriteFile("pi.json", bytes, os.FileMode(os.O_RDWR)) // TODO: See if this works on non-unix like systems
+				a.SendNotification(fyne.NewNotification("Done", "Relaunch the application"))
+				w.Close()
+			}
+		}, w)
+	})
+	btn2 := widget.NewButton("Close pi", func() {
+		w.Close()
+	})
+	w.SetContent(container.NewVBox(rt, btn, btn2, footer))
+	w.ShowAndRun()
 
 }
 
@@ -235,9 +235,8 @@ func main() {
 		return
 	}
 
-
 	err = json.Unmarshal(bytes, &config)
-	if err != nil { 
+	if err != nil {
 		dropToSignInPage(fmt.Sprintf("Your pi.json file is invalid:\n%s", err.Error()))
 		return
 	}
@@ -335,11 +334,11 @@ func main() {
 					replyID = msg.Reply.To
 				}
 				myMessage := Message{
-					Author:  msg.From.Resourcepart(),
-					Content: str,
-					ID:      msg.ID,
-					ReplyID: replyID,
-					Raw:     *msg,
+					Author:   msg.From.Resourcepart(),
+					Content:  str,
+					ID:       msg.ID,
+					ReplyID:  replyID,
+					Raw:      *msg,
 					ImageURL: ImageID,
 				}
 				tab.Messages = append(tab.Messages, myMessage)
@@ -458,10 +457,10 @@ func main() {
 	})
 
 	reconnect := fyne.NewMenuItem("reconnect", func() {
-		go func(){
+		go func() {
 			err := client.Connect()
 			if err != nil {
-				fyne.Do(func(){
+				fyne.Do(func() {
 					dialog.ShowError(err, w)
 				})
 			}
