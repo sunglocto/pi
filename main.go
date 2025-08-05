@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"image/color"
 	"io"
+	_ "io/fs"
 	"log"
 	"net/url"
 	"os"
 	"strings"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -17,7 +19,6 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	_ "fyne.io/x/fyne/theme"
 	catppuccin "github.com/mbaklor/fyne-catppuccin"
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
@@ -31,12 +32,12 @@ var version string = "3a"
 // license AGPL
 
 type Message struct {
-	Author  string
-	Content string
-	ID      string
-	ReplyID string
+	Author   string
+	Content  string
+	ID       string
+	ReplyID  string
 	ImageURL string
-	Raw     oasisSdk.XMPPChatMessage
+	Raw      oasisSdk.XMPPChatMessage
 }
 
 type MucTab struct {
@@ -47,11 +48,21 @@ type MucTab struct {
 	isMuc    bool
 }
 
+type piConfig struct {
+	Login         oasisSdk.LoginInfo
+	DMs           []string
+	Notifications bool
+}
+
+var config piConfig
+var login oasisSdk.LoginInfo
+var DMs []string
+
 var chatTabs = make(map[string]*MucTab)
 var tabs *container.AppTabs
 var selectedId widget.ListItemID
 var replying bool = false
-var notifications bool = true
+var notifications bool
 var connection bool = true
 
 type myTheme struct{}
@@ -117,13 +128,15 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 			btn.Hidden = true // Hide by default
 			msgContent := tabData.Messages[i].Content
 			if tabData.Messages[i].ImageURL != "" {
-			btn.Hidden = false
-			btn.OnTapped = func(){fyne.Do(func() {
-					u, _ := storage.ParseURI(tabData.Messages[i].ImageURL)
-					image := canvas.NewImageFromURI(u)
-					image.FillMode = canvas.ImageFillOriginal
-					dialog.ShowCustom("Image", "Close", image, w)
-			})}
+				btn.Hidden = false
+				btn.OnTapped = func() {
+					fyne.Do(func() {
+						u, _ := storage.ParseURI(tabData.Messages[i].ImageURL)
+						image := canvas.NewImageFromURI(u)
+						image.FillMode = canvas.ImageFillOriginal
+						dialog.ShowCustom("Image", "Close", image, w)
+					})
+				}
 			}
 			// Check if the message is a quote
 			lines := strings.Split(msgContent, "\n")
@@ -155,30 +168,83 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 	tabs.Append(tabItem)
 }
 
-func main() {
-	login := oasisSdk.LoginInfo{}
+func dropToSignInPage(reason string) {
+		a = app.New()
+		w = a.NewWindow("Welcome to Pi")
+		w.Resize(fyne.NewSize(500, 500))
+		rt := widget.NewRichTextFromMarkdown("# Welcome to pi\nIt appears you do not have a valid account configured. Let's create one!")
+		footer := widget.NewRichTextFromMarkdown(fmt.Sprintf("Reason for being dropped to the sign-in page:\n\n```%s```", reason))
+		userEntry := widget.NewEntry()
+		userEntry.SetPlaceHolder("Your JID")
+		serverEntry := widget.NewEntry()
+		serverEntry.SetPlaceHolder("Server and port")
+		passwordEntry := widget.NewPasswordEntry()
+		passwordEntry.SetPlaceHolder("Your Password")
+		nicknameEntry := widget.NewEntry()
+		nicknameEntry.SetPlaceHolder("Your Nickname")
 
-	DMs := []string{}
+		userView := widget.NewFormItem("", userEntry)
+		serverView := widget.NewFormItem("", serverEntry)
+		passwordView := widget.NewFormItem("", passwordEntry)
+		nicknameView := widget.NewFormItem("", nicknameEntry)
+		items := []*widget.FormItem{
+			serverView,
+			userView,
+			passwordView,
+			nicknameView,
+		}
+
+		btn := widget.NewButton("Create an account", func() {
+			dialog.ShowForm("Create an account", "Create", "Dismiss", items, func(b bool) {
+				if b {
+					config := piConfig{}
+					config.Login.Host = serverEntry.Text
+					config.Login.User = userEntry.Text
+					config.Login.Password = passwordEntry.Text
+					config.Login.DisplayName = nicknameEntry.Text
+					config.Notifications = true
+
+					bytes, err := json.MarshalIndent(config, "", "	")
+					if err != nil {
+						dialog.ShowError(err, w)
+						return
+					}
+
+					os.Create("pi.json")
+					os.WriteFile("pi.json", bytes, os.FileMode(os.O_RDWR)) // TODO: See if this works on non-unix like systems
+					a.SendNotification(fyne.NewNotification("Done", "Relaunch the application"))
+					w.Close()
+				}
+			}, w)
+		})
+		btn2 := widget.NewButton("Close pi", func() {
+			w.Close()
+		})
+		w.SetContent(container.NewVBox(rt, btn, btn2,footer))
+		w.ShowAndRun()
+
+}
+
+func main() {
+
+	config = piConfig{}
 
 	bytes, err := os.ReadFile("./pi.json")
 	if err != nil {
-		a = app.New()
-		w = a.NewWindow("Error")
-		w.Resize(fyne.NewSize(500, 500))
-		dialog.ShowInformation("Error", fmt.Sprintf("Please make sure there is a file named pi.json in the same directory you are running this executable...\n%s", err.Error()), w)
-		w.ShowAndRun()
+		dropToSignInPage(err.Error())
 		return
 	}
-	err = json.Unmarshal(bytes, &login)
-	if err != nil {
-		fyne.Do(func() {
-		a = app.New()
-		w = a.NewWindow("Error")
-		w.Resize(fyne.NewSize(500, 500))
-		dialog.ShowError(err, w)
-		w.ShowAndRun()
-		})
+
+
+	err = json.Unmarshal(bytes, &config)
+	if err != nil { 
+		dropToSignInPage(fmt.Sprintf("Your pi.json file is invalid:\n%s", err.Error()))
+		return
 	}
+
+	login = config.Login
+	DMs = config.DMs
+	notifications = config.Notifications
 
 	client, err := oasisSdk.CreateClient(
 		&login,
@@ -194,7 +260,7 @@ func main() {
 				}
 				var img string = ""
 				if strings.Contains(str, "https://") {
-					lines := strings.Split(str, " ")
+					lines := strings.Split(str, "\n")
 					for i, line := range lines {
 						s := strings.Split(line, " ")
 						for j, v := range s {
@@ -215,11 +281,11 @@ func main() {
 					replyID = msg.Reply.ID
 				}
 				myMessage := Message{
-					Author:  msg.From.Resourcepart(),
-					Content: str,
-					ID:      msg.ID,
-					ReplyID: replyID,
-					Raw:     *msg,
+					Author:   msg.From.Resourcepart(),
+					Content:  str,
+					ID:       msg.ID,
+					ReplyID:  replyID,
+					Raw:      *msg,
 					ImageURL: img,
 				}
 
@@ -243,7 +309,7 @@ func main() {
 					}
 				}
 				if strings.Contains(str, "https://") {
-					lines := strings.Split(str, " ")
+					lines := strings.Split(str, "\n")
 					for i, line := range lines {
 						s := strings.Split(line, " ")
 						for j, v := range s {
@@ -396,7 +462,6 @@ func main() {
 		entry.SetText("")
 	})
 
-
 	mit := fyne.NewMenuItem("about pi", func() {
 		dialog.ShowInformation("about pi", fmt.Sprintf("the XMPP client from hell\n\npi is an experimental XMPP client\nwritten by Sunglocto in Go.\n\nVersion %s", version), w)
 	})
@@ -426,6 +491,22 @@ func main() {
 				fmt.Println("clearing chat")
 			}
 		}, w)
+	})
+
+	jtb := fyne.NewMenuItem("jump to bottom", func() {
+		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		if !ok {
+			return
+		}
+		selectedScroller.ScrollToBottom()
+	})
+
+	jtt := fyne.NewMenuItem("jump to top", func() {
+		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		if !ok {
+			return
+		}
+		selectedScroller.ScrollToTop()
 	})
 	/*mib := fyne.NewMenuItem("Join a room", func() {
 		nickEntry := widget.NewEntry()
@@ -457,24 +538,56 @@ func main() {
 	})*/
 
 	mic := fyne.NewMenuItem("upload a file", func() {
+		var link string
+		var bytes []byte
+		var toperr error
+		var topreader fyne.URIReadCloser
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-			if err != nil {
-				dialog.ShowError(err, w)
-			}
-			bytes, err := io.ReadAll(reader)
-			link, err := client.UploadFileFromBytes(reader.URI().String(), bytes)
 			if err != nil {
 				dialog.ShowError(err, w)
 				return
 			}
+			if reader == nil {
+				return
+			}
+			bytes, toperr = io.ReadAll(reader)
+			topreader = reader
+
+			if toperr != nil {
+				dialog.ShowError(toperr, w)
+				return
+			}
+
+			progress := make(chan oasisSdk.UploadProgress)
+			myprogressbar := widget.NewProgressBar()
+			dialog.ShowCustom("Uploading file", "Hide", myprogressbar, w)
+			go func() {
+
+				client.UploadFileFromBytes(client.Ctx, topreader.URI().Name(), bytes, progress)
+			}()
+			for update := range progress {
+				myprogressbar.Value = float64(update.Percentage)
+				myprogressbar.Refresh()
+
+				if update.Error != nil {
+					dialog.ShowError(update.Error, w)
+					return
+				}
+
+				if update.GetURL != "" {
+					link = update.GetURL
+				}
+			}
+
 			a.Clipboard().SetContent(link)
 			dialog.ShowInformation("file successfully uploaded\nURL copied to your clipboard", link, w)
+
 		}, w)
 	})
 
 	menu_help := fyne.NewMenu("π", mit)
 	menu_changeroom := fyne.NewMenu("β", mic)
-	menu_configureview := fyne.NewMenu("γ", mia, mis)
+	menu_configureview := fyne.NewMenu("γ", mia, mis, jtt, jtb)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
 		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
 		if !ok {
@@ -495,7 +608,29 @@ func main() {
 	bia := fyne.NewMenuItem("toggle replying to message", func() {
 		replying = !replying
 	})
-	menu_messageoptions := fyne.NewMenu("Σ", bit, bia)
+
+	bic := fyne.NewMenuItem("open selected message in new window", func() {
+		pre := widget.NewMultiLineEntry()
+
+		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		if !ok {
+			return
+		}
+
+		var activeChatJid string
+		for jid, tabData := range chatTabs {
+			if tabData.Scroller == selectedScroller {
+				activeChatJid = jid
+				break
+			}
+		}
+
+		m := chatTabs[activeChatJid].Messages[selectedId].Content
+		pre.SetText(m)
+		pre.Refresh()
+		dialog.ShowCustom("Message", "Close", container.NewHBox(pre), w)
+	})
+	menu_messageoptions := fyne.NewMenu("Σ", bit, bia, bic)
 	ma := fyne.NewMainMenu(menu_help, menu_changeroom, menu_configureview, menu_messageoptions)
 	w.SetMainMenu(ma)
 
