@@ -1,16 +1,16 @@
 package main
 
 import (
+	//core - required
 	"encoding/xml"
 	"fmt"
 	"image/color"
 	"io"
-	_ "io/fs"
 	"log"
 	"net/url"
 	"os"
 	"strings"
-
+	// gui - required
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
@@ -19,11 +19,15 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	catppuccin "github.com/mbaklor/fyne-catppuccin"
-	_ "fyne.io/x/fyne/theme"
+
+	// xmpp - required
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
 	oasisSdk "pain.agency/oasis-sdk"
+
+	// gui - optional
+	catppuccin "github.com/mbaklor/fyne-catppuccin"
+	fyneVideo "github.com/metal3d/fyne-streamer/video"
 )
 
 var version string = "3.1a"
@@ -654,7 +658,7 @@ func main() {
 		welcome to pi
 
 		you are currently not focused on any rooms.
-		you can add new rooms by editing your pi.json file.
+		you can add new rooms by editing your pi.xml file.
 		in order to change application settings, refer to the tab-menu with the Greek letters. 
 		these buttons allow you to configure the application as well as other functions.
 		for more information about the pi project itself, hit the π button.
