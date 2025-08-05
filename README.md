@@ -18,7 +18,9 @@ pi is an extremely opinionated client. It aims to have as little extra windows a
 ## διαμόρφωση
 (configuration)
 
-In order to use pi, you currently have to create a `pi.json` file in the working directory of the executable. Here is how one looks like as of time of writing:
+When you launch pi, you will be greeted with a create account screen. You will then be able to enter your XMPP account details and then relaunch the application to log in.
+
+If you want to add MUCs or DMs, you must configure the program. Here is the general idea:
 
 ```json
 {
@@ -43,9 +45,6 @@ In order to use pi, you currently have to create a `pi.json` file in the working
 ```
 
 Edit this file as necessary.
-
-A login screen will be implemented in pi 3.1a.
-
 
 Currently joining and saving DM tabs is not supported, nor is getting avatars, reactions, encryption of media embed.
 
