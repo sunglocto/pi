@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"encoding/xml"
 	"fmt"
 	"image/color"
 	"io"
@@ -298,6 +299,7 @@ func main() {
 			}
 		},
 		func(client *oasisSdk.XmppClient, _ *muc.Channel, msg *oasisSdk.XMPPChatMessage) {
+			var ImageID string = ""
 			mucJidStr := msg.From.Bare().String()
 			if tab, ok := chatTabs[mucJidStr]; ok {
 
@@ -315,6 +317,9 @@ func main() {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
 								s[j] = fmt.Sprintf("[%s](%s)", v, v)
+								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jp") || strings.HasSuffix(v, ".webp") {
+									ImageID = v
+								}
 							}
 						}
 						lines[i] = strings.Join(s, " ")
@@ -335,6 +340,7 @@ func main() {
 					ID:      msg.ID,
 					ReplyID: replyID,
 					Raw:     *msg,
+					ImageURL: ImageID,
 				}
 				tab.Messages = append(tab.Messages, myMessage)
 				fyne.Do(func() {
@@ -449,6 +455,17 @@ func main() {
 
 	mit := fyne.NewMenuItem("about pi", func() {
 		dialog.ShowInformation("about pi", fmt.Sprintf("the XMPP client from hell\n\npi is an experimental XMPP client\nwritten by Sunglocto in Go.\n\nVersion %s", version), w)
+	})
+
+	reconnect := fyne.NewMenuItem("reconnect", func() {
+		go func(){
+			err := client.Connect()
+			if err != nil {
+				fyne.Do(func(){
+					dialog.ShowError(err, w)
+				})
+			}
+		}()
 	})
 
 	mia := fyne.NewMenuItem("configure message view", func() {
@@ -570,7 +587,7 @@ func main() {
 		}, w)
 	})
 
-	menu_help := fyne.NewMenu("π", mit)
+	menu_help := fyne.NewMenu("π", mit, reconnect)
 	menu_changeroom := fyne.NewMenu("β", mic)
 	menu_configureview := fyne.NewMenu("γ", mia, mis, jtt, jtb)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
@@ -594,8 +611,8 @@ func main() {
 		replying = !replying
 	})
 
-	bic := fyne.NewMenuItem("open selected message in new window", func() {
-		pre := widget.NewMultiLineEntry()
+	bic := fyne.NewMenuItem("show message XML", func() {
+		pre := widget.NewLabel("")
 
 		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
 		if !ok {
@@ -610,10 +627,16 @@ func main() {
 			}
 		}
 
-		m := chatTabs[activeChatJid].Messages[selectedId].Content
-		pre.SetText(m)
+		m := chatTabs[activeChatJid].Messages[selectedId].Raw
+		bytes, err := xml.MarshalIndent(m, "", "	")
+		if err != nil {
+			dialog.ShowError(err, w)
+			return
+		}
+		pre.SetText(string(bytes))
+		pre.Selectable = true
 		pre.Refresh()
-		dialog.ShowCustom("Message", "Close", container.NewHBox(pre), w)
+		dialog.ShowCustom("Message", "Close", pre, w)
 	})
 	menu_messageoptions := fyne.NewMenu("Σ", bit, bia, bic)
 	ma := fyne.NewMainMenu(menu_help, menu_changeroom, menu_configureview, menu_messageoptions)
