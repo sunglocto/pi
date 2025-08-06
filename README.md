@@ -90,6 +90,10 @@ From fellow insane and schizophrenic XMPP users:
 
 > pi devstream when
 
+<img width="361" height="66" alt="image" src="https://github.com/user-attachments/assets/5a926f6b-1005-4795-a6ef-4e0538bb4d5a" />
+<img width="316" height="73" alt="image" src="https://github.com/user-attachments/assets/52309c60-8110-43eb-9c45-56c9cfd82cc4" />
+
+
 ## επιπλέον
 (extra)
 
