@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"time"
+
 	// gui - required
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
@@ -21,8 +23,11 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	// xmpp - required
+	_ "mellium.im/xmlstream"
+	_ "mellium.im/xmpp"
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
+	_ "mellium.im/xmpp/stanza"
 	oasisSdk "pain.agency/oasis-sdk"
 
 	// gui - optional
@@ -34,6 +39,8 @@ import (
 var version string = "3.1a"
 var statBar widget.Label
 var chatInfo fyne.Container
+var chatSidebar fyne.Container 
+
 // by sunglocto
 // license AGPL
 
@@ -180,6 +187,8 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 		selectedId = id
 	}
 
+	scroller.CreateItem()
+
 	tabData.Scroller = scroller
 
 	chatTabs[mucJidStr] = tabData
@@ -254,7 +263,7 @@ func dropToSignInPage(reason string) {
 }
 
 func main() {
-
+	muc.Since(time.Now())
 	config = piConfig{}
 
 	bytes, err := os.ReadFile("./pi.xml")
@@ -328,12 +337,21 @@ func main() {
 			}
 		},
 		func(client *oasisSdk.XmppClient, muc *muc.Channel, msg *oasisSdk.XMPPChatMessage) {
+			// HACK: IGNORING ALL MESSAGES FROM CLASSIC MUC HISTORY IN PREPARATION OF MAM SUPPORT
+			ignore := false
+			for _, v := range msg.Unknown {
+				if v.XMLName.Local == "delay" { // CLasic history message
+					ignore = true
+					fmt.Println("ignoring!")
+				}
+			}
+
 			var ImageID string = ""
 			mucJidStr := msg.From.Bare().String()
 			if tab, ok := chatTabs[mucJidStr]; ok {
 				chatTabs[mucJidStr].Muc = muc
 				str := *msg.CleanedBody
-				if notifications {
+				if !ignore && notifications {
 					if strings.Contains(str, login.DisplayName) || (msg.Reply != nil && strings.Contains(msg.Reply.To, login.DisplayName)) {
 						a.SendNotification(fyne.NewNotification(fmt.Sprintf("Mentioned in %s", mucJidStr), str))
 					}
@@ -371,7 +389,9 @@ func main() {
 					Raw:      *msg,
 					ImageURL: ImageID,
 				}
-				tab.Messages = append(tab.Messages, myMessage)
+				if !ignore {
+					tab.Messages = append(tab.Messages, myMessage)
+				}
 				fyne.Do(func() {
 					tab.Scroller.Refresh()
 					if scrollDownOnNewMessage {
@@ -420,6 +440,29 @@ func main() {
 		log.Fatalln("Could not create client - " + err.Error())
 	}
 
+/*
+	client.Session.Serve(xmpp.HandlerFunc(func(t xmlstream.TokenReadEncoder, start *xml.StartElement) error {
+    d := xml.NewTokenDecoder(t)
+
+    // Ignore anything that's not a message.
+    if start.Name.Local != "message" {
+        return nil
+    }
+
+    msg := struct {
+        stanza.Message
+        Body string `xml:"body"`
+    }{}
+    err := d.DecodeElement(&msg, start)
+		if err != nil {
+			return err
+		}
+    if msg.Body != "" {
+        log.Println("Got message: %q", msg.Body)
+    }
+		return nil
+}))
+*/
 	go func() {
 		for connection {
 			err = client.Connect()
@@ -436,6 +479,8 @@ func main() {
 			}
 		}
 	}()
+
+
 
 	a = app.New()
 	a.Settings().SetTheme(myTheme{})
@@ -585,6 +630,9 @@ func main() {
 		}, w)
 	})*/
 
+	deb := fyne.NewMenuItem("DEBUG: Attempt to get MAM history from a user", func() {
+				//res, err := history.Fetch(client.Ctx, history.Query{}, jid.MustParse("ringen@muc.isekai.rocks"), client.Session)
+	})
 	mic := fyne.NewMenuItem("upload a file", func() {
 		var link string
 		var bytes []byte
@@ -633,7 +681,7 @@ func main() {
 		}, w)
 	})
 
-	menu_help := fyne.NewMenu("π", mit, reconnect)
+	menu_help := fyne.NewMenu("π", mit, reconnect,deb)
 	menu_changeroom := fyne.NewMenu("β", mic)
 	menu_configureview := fyne.NewMenu("γ", mia, mis, jtt, jtb)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
@@ -735,9 +783,18 @@ func main() {
 		} else {
 			chatInfo = *container.NewHBox(widget.NewLabel(tab.Jid.String()))
 		}
+
+		if tab.isMuc {
+			fyne.Do(func() {
+				desc := widget.NewLabel("A MUC is a chatroom that can have multiple members. Eventually this pane will display information about this room, such as the members in it, the name of the MUC and its topic.")
+				desc.Wrapping = fyne.TextWrapBreak
+				chatSidebar = *container.NewStack(container.NewVScroll(container.NewVBox(widget.NewRichTextFromMarkdown(fmt.Sprintf("# %s", tab.Muc.Addr().Localpart())), widget.NewRichTextFromMarkdown(tab.Muc.Addr().String()), desc)))
+				//chatSidebar.Refresh()
+			})
+		}
 	}
 
 	statBar.SetText("nothing seems to be happening right now...")
-	w.SetContent(container.NewVSplit(container.NewVSplit(tabs, container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar,&chatInfo)))
+	w.SetContent(container.NewVSplit(container.NewVSplit(container.NewHSplit(tabs, &chatSidebar), container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar,&chatInfo)))
 	w.ShowAndRun()
 }
