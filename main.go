@@ -365,7 +365,7 @@ func main() {
 				chatTabs[mucJidStr].Muc = muc
 				str := *msg.CleanedBody
 				if !ignore && notifications {
-					if !correction && strings.Contains(str, login.DisplayName) || (msg.Reply != nil && strings.Contains(msg.Reply.To, login.DisplayName)) {
+					if !correction && msg.From.String() != client.JID.String() && strings.Contains(str, login.DisplayName) || (msg.Reply != nil && strings.Contains(msg.Reply.To, login.DisplayName)) {
 						a.SendNotification(fyne.NewNotification(fmt.Sprintf("Mentioned in %s", mucJidStr), str))
 					}
 				}
@@ -514,7 +514,7 @@ func main() {
 
 	SendCallback := func() {
 		text := entry.Text
-		if tabs.Selected() == nil || tabs.Selected().Content == nil {
+		if tabs.Selected() == nil || tabs.Selected().Content == nil || text == "" {
 			return
 		}
 
