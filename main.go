@@ -396,7 +396,7 @@ func main() {
 				}
 
 				if correction {
-					for i := len(tab.Messages)-1; i > 0; i++ {
+					for i := len(tab.Messages)-1; i > 0; i-- {
 						if tab.Messages[i].Raw.From.String() == msg.From.String() {
 							tab.Messages[i].Content = *msg.CleanedBody + " (edited)"
 							fyne.Do(func() {
