@@ -447,7 +447,7 @@ func main() {
 				})
 			default:
 				fyne.Do(func() {
-					statBar.SetText(fmt.Sprint("Unknown state: ", state))
+					statBar.SetText("")
 				})
 			}
 		},
