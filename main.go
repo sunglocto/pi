@@ -303,7 +303,7 @@ func main() {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
 								s[j] = fmt.Sprintf("[%s](%s)", v, v)
-								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jp") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
+								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
 									img = v
 								}
 							}
@@ -364,7 +364,7 @@ func main() {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
 								s[j] = fmt.Sprintf("[%s](%s)", v, v)
-								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jp") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
+								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
 									ImageID = v
 								}
 							}
@@ -402,10 +402,6 @@ func main() {
 		},
 		func(_ *oasisSdk.XmppClient, from jid.JID, state oasisSdk.ChatState) {
 			switch state {
-			case oasisSdk.ChatStateActive:
-				fyne.Do(func() {
-					statBar.SetText(fmt.Sprintf("%s is active", from.Resourcepart()))
-				})
 			case oasisSdk.ChatStateComposing:
 				fyne.Do(func() {
 					statBar.SetText(fmt.Sprintf("%s is typing...", from.Resourcepart()))
@@ -492,7 +488,7 @@ func main() {
 	entry.OnChanged = func(s string) {
 	}
 
-	sendbtn := widget.NewButton("Send", func() {
+	SendCallback := func() {
 		text := entry.Text
 		if tabs.Selected() == nil || tabs.Selected().Content == nil {
 			return
@@ -542,7 +538,13 @@ func main() {
 			})
 		}
 		entry.SetText("")
-	})
+	} 
+
+	sendbtn := widget.NewButton("Send", SendCallback)
+	entry.OnSubmitted = func(s string) {
+		SendCallback()
+		// i fucking hate fyne
+	} 
 
 	mit := fyne.NewMenuItem("about pi", func() {
 		dialog.ShowInformation("about pi", fmt.Sprintf("the XMPP client from hell\n\npi is an experimental XMPP client\nwritten by Sunglocto in Go.\n\nVersion %s", version), w)
@@ -635,10 +637,11 @@ func main() {
 	})
 	mic := fyne.NewMenuItem("upload a file", func() {
 		var link string
-		var bytes []byte
 		var toperr error
-		var topreader fyne.URIReadCloser
+		//var topreader fyne.URIReadCloser
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
+			go func ()  {
+				
 			if err != nil {
 				dialog.ShowError(err, w)
 				return
@@ -647,7 +650,7 @@ func main() {
 				return
 			}
 			bytes, toperr = io.ReadAll(reader)
-			topreader = reader
+			//topreader = reader
 
 			if toperr != nil {
 				dialog.ShowError(toperr, w)
@@ -656,16 +659,20 @@ func main() {
 
 			progress := make(chan oasisSdk.UploadProgress)
 			myprogressbar := widget.NewProgressBar()
-			dialog.ShowCustom("Uploading file", "Hide", myprogressbar, w)
+			diag := dialog.NewCustom("Uploading file", "Hide", myprogressbar, w)
+			diag.Show()
 			go func() {
-
-				client.UploadFileFromBytes(client.Ctx, topreader.URI().Name(), bytes, progress)
+				client.UploadFile(client.Ctx, reader.URI().Path(), progress)
 			}()
+
 			for update := range progress {
-				myprogressbar.Value = float64(update.Percentage)
+				fyne.Do(func() {
+				myprogressbar.Value = float64(update.Percentage)/100
 				myprogressbar.Refresh()
+				})
 
 				if update.Error != nil {
+					diag.Dismiss()
 					dialog.ShowError(update.Error, w)
 					return
 				}
@@ -675,8 +682,10 @@ func main() {
 				}
 			}
 
+			diag.Dismiss()
 			a.Clipboard().SetContent(link)
 			dialog.ShowInformation("file successfully uploaded\nURL copied to your clipboard", link, w)
+		}()
 
 		}, w)
 	})
