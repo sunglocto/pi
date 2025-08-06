@@ -8,7 +8,6 @@ import (
 	"io"
 	"log"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -23,11 +22,9 @@ import (
 	"fyne.io/fyne/v2/widget"
 
 	// xmpp - required
-	_ "mellium.im/xmlstream"
-	_ "mellium.im/xmpp"
+	"mellium.im/xmpp/disco"
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
-	_ "mellium.im/xmpp/stanza"
 	oasisSdk "pain.agency/oasis-sdk"
 
 	// gui - optional
@@ -176,7 +173,7 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 
 			content.ParseMarkdown(msgContent)
 			if tabData.Messages[i].ReplyID != "PICLIENT:UNAVAILABLE" {
-				author.SetText(fmt.Sprintf("%s > %s", tabData.Messages[i].Author, jid.MustParse(tabData.Messages[i].ReplyID).Resourcepart()))
+				author.SetText(fmt.Sprintf("%s > %s", tabData.Messages[i].Author, jid.MustParse(tabData.Messages[i].Raw.Reply.To).Resourcepart()))
 			} else {
 				author.SetText(tabData.Messages[i].Author)
 			}
@@ -198,7 +195,6 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 }
 
 func dropToSignInPage(reason string) {
-	a = app.New()
 	w = a.NewWindow("Welcome to Pi")
 	w.Resize(fyne.NewSize(500, 500))
 	rt := widget.NewRichTextFromMarkdown("# Welcome to pi\nIt appears you do not have a valid account configured. Let's create one!")
@@ -232,25 +228,28 @@ func dropToSignInPage(reason string) {
 				config.Login.Password = passwordEntry.Text
 				config.Login.DisplayName = nicknameEntry.Text
 				config.Notifications = true
+				config.Login.MucsToJoin = append(config.Login.MucsToJoin, "ringen@muc.isekai.rocks") // DEBUG
 
-				bytes, err := xml.MarshalIndent(config, "", "	")
+				bytes, err := xml.MarshalIndent(config, "", "\t")
 				if err != nil {
 					dialog.ShowError(err, w)
 					return
 				}
 
-				_, err = os.Create("pi.xml")
+				writer, err := a.Storage().Create("pi.xml")
 				if err != nil {
 					dialog.ShowError(err, w)
 					return
 				}
-				err = os.WriteFile("pi.xml", bytes, os.FileMode(os.O_RDWR)) // TODO: See if this works on non-unix like systems
+				defer writer.Close()
+				_, err = writer.Write(bytes)
 				if err != nil {
 					dialog.ShowError(err, w)
 					return
 				}
 				a.SendNotification(fyne.NewNotification("Done", "Relaunch the application"))
-				w.Close()
+				a.Quit()
+				//w.Close()
 			}
 		}, w)
 	})
@@ -265,8 +264,15 @@ func dropToSignInPage(reason string) {
 func main() {
 	muc.Since(time.Now())
 	config = piConfig{}
+	a = app.NewWithID("pi-ism")
+	reader, err := a.Storage().Open("pi.xml")
+	if err != nil {
+		dropToSignInPage(err.Error())
+		return
+	}
+	defer reader.Close()
 
-	bytes, err := os.ReadFile("./pi.xml")
+	bytes, err := io.ReadAll(reader)
 	if err != nil {
 		dropToSignInPage(err.Error())
 		return
@@ -278,8 +284,8 @@ func main() {
 		return
 	}
 
-	login = config.Login
 	DMs = config.DMs
+	login = config.Login
 	notifications = config.Notifications
 
 	client, err := oasisSdk.CreateClient(
@@ -339,10 +345,17 @@ func main() {
 		func(client *oasisSdk.XmppClient, muc *muc.Channel, msg *oasisSdk.XMPPChatMessage) {
 			// HACK: IGNORING ALL MESSAGES FROM CLASSIC MUC HISTORY IN PREPARATION OF MAM SUPPORT
 			ignore := false
+			correction := false
 			for _, v := range msg.Unknown {
 				if v.XMLName.Local == "delay" { // CLasic history message
-					ignore = true
-					fmt.Println("ignoring!")
+					//ignore = true
+					//fmt.Println("ignoring!")
+				}
+			}
+
+			for _, v := range msg.Unknown {
+				if v.XMLName.Local == "replace" {
+					correction = true
 				}
 			}
 
@@ -352,7 +365,7 @@ func main() {
 				chatTabs[mucJidStr].Muc = muc
 				str := *msg.CleanedBody
 				if !ignore && notifications {
-					if strings.Contains(str, login.DisplayName) || (msg.Reply != nil && strings.Contains(msg.Reply.To, login.DisplayName)) {
+					if !correction && strings.Contains(str, login.DisplayName) || (msg.Reply != nil && strings.Contains(msg.Reply.To, login.DisplayName)) {
 						a.SendNotification(fyne.NewNotification(fmt.Sprintf("Mentioned in %s", mucJidStr), str))
 					}
 				}
@@ -381,6 +394,19 @@ func main() {
 				} else {
 					replyID = msg.Reply.To
 				}
+
+				if correction {
+					for i := len(tab.Messages)-1; i > 0; i++ {
+						if tab.Messages[i].Raw.From.String() == msg.From.String() {
+							tab.Messages[i].Content = *msg.CleanedBody + " (edited)"
+							fyne.Do(func() {
+							tab.Scroller.Refresh()
+							})
+							return
+						}
+					}
+				}
+
 				myMessage := Message{
 					Author:   msg.From.Resourcepart(),
 					Content:  str,
@@ -518,7 +544,7 @@ func main() {
 				return
 			}
 
-			err = client.SendText(jid.MustParse(activeMucJid), text)
+			err = client.SendText(jid.MustParse(activeMucJid).Bare(), text)
 			if err != nil {
 				dialog.ShowError(err, w)
 			}
@@ -528,6 +554,7 @@ func main() {
 			chatTabs[activeMucJid].Messages = append(chatTabs[activeMucJid].Messages, Message{
 				Author:  "You",
 				Content: text,
+				ReplyID: "PICLIENT:UNAVAILABLE",
 			})
 			fyne.Do(func() {
 				if scrollDownOnNewMessage {
@@ -601,34 +628,40 @@ func main() {
 		}
 		selectedScroller.ScrollToTop()
 	})
-	/*mib := fyne.NewMenuItem("Join a room", func() {
-		nickEntry := widget.NewEntry()
-		nickEntry.SetText(login.DisplayName)
-		roomEntry := widget.NewEntry()
-		items := []*widget.FormItem{
-			widget.NewFormItem("Nick", nickEntry),
-			widget.NewFormItem("MUC address", roomEntry),
+
+	w.SetOnDropped(func(p fyne.Position, u []fyne.URI) {
+		var link string
+		myUri := u[0] // Only upload a single file
+		progress := make(chan oasisSdk.UploadProgress)
+		myprogressbar := widget.NewProgressBar()
+		diag := dialog.NewCustom("Uploading file", "Hide", myprogressbar, w)
+		diag.Show()
+		go func() {
+			client.UploadFile(client.Ctx, myUri.Path(), progress)
+		}()
+
+		for update := range progress {
+			fyne.Do(func() {
+				myprogressbar.Value = float64(update.Percentage) / 100
+				myprogressbar.Refresh()
+			})
+
+			if update.Error != nil {
+				diag.Dismiss()
+				dialog.ShowError(update.Error, w)
+				return
+			}
+
+			if update.GetURL != "" {
+				link = update.GetURL
+			}
 		}
 
-		dialog.ShowForm("join a MUC", "join", "cancel", items, func(b bool) {
-			if b {
-				roomJid, err := jid.Parse(roomEntry.Text)
-				if err != nil {
-					dialog.ShowError(err, w)
-					return
-				}
-				nick := nickEntry.Text
-				go func() {
-					// We probably don't need to handle the error here, if it fails the user will know
-					_, err := client.MucClient.Join(client.Ctx, roomJid, client.Session, nil)
-					if err != nil {
-						panic(err)
-					}
-				}()
-				addChatTab(true, roomJid, nick)
-			}
-		}, w)
-	})*/
+		diag.Dismiss()
+		a.Clipboard().SetContent(link)
+		dialog.ShowInformation("file successfully uploaded\nURL copied to your clipboard", link, w)
+
+	})
 
 	deb := fyne.NewMenuItem("DEBUG: Attempt to get MAM history from a user", func() {
 		//res, err := history.Fetch(client.Ctx, history.Query{}, jid.MustParse("ringen@muc.isekai.rocks"), client.Session)
@@ -688,8 +721,24 @@ func main() {
 		}, w)
 	})
 
+	servDisc := fyne.NewMenuItem("Service discovery", func() {
+
+		myBox := container.NewVBox()
+		info, err := disco.GetInfo(client.Ctx, "", jid.MustParse("ringen@muc.isekai.rocks"), client.Session)
+		if err != nil {
+			dialog.ShowError(err, w)
+		}
+		m := info.Features
+		for _, v := range m {
+			myBox.Objects = append(myBox.Objects, widget.NewLabel(v.Var))
+			myBox.Refresh()
+		}
+
+		dialog.ShowCustom("things", "cancel", myBox, w)
+	})
+
 	menu_help := fyne.NewMenu("π", mit, reconnect, deb)
-	menu_changeroom := fyne.NewMenu("β", mic)
+	menu_changeroom := fyne.NewMenu("β", mic, servDisc)
 	menu_configureview := fyne.NewMenu("γ", mia, mis, jtt, jtb)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
 		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
@@ -729,7 +778,7 @@ func main() {
 		}
 
 		m := chatTabs[activeChatJid].Messages[selectedId].Raw
-		bytes, err := xml.MarshalIndent(m, "", "	")
+		bytes, err := xml.MarshalIndent(m, "", "\t")
 		if err != nil {
 			dialog.ShowError(err, w)
 			return
@@ -745,13 +794,7 @@ func main() {
 
 	tabs = container.NewAppTabs(
 		container.NewTabItem("τίποτα", widget.NewLabel(`
-		welcome to pi
-
-		you are currently not focused on any rooms.
-		you can add new rooms by editing your pi.xml file.
-		in order to change application settings, refer to the tab-menu with the Greek letters. 
-		these buttons allow you to configure the application as well as other functions.
-		for more information about the pi project itself, hit the π button.
+		pi
 		`)),
 	)
 
@@ -792,12 +835,8 @@ func main() {
 		}
 
 		if tab.isMuc {
-			fyne.Do(func() {
-				desc := widget.NewLabel("A MUC is a chatroom that can have multiple members. Eventually this pane will display information about this room, such as the members in it, the name of the MUC and its topic.")
-				desc.Wrapping = fyne.TextWrapBreak
-				chatSidebar = *container.NewStack(container.NewVScroll(container.NewVBox(widget.NewRichTextFromMarkdown(fmt.Sprintf("# %s", tab.Muc.Addr().Localpart())), widget.NewRichTextFromMarkdown(tab.Muc.Addr().String()), desc)))
+				chatSidebar = *container.NewStack(container.NewVScroll(container.NewVBox(widget.NewRichTextFromMarkdown(fmt.Sprintf("# %s", tab.Jid.String())), widget.NewRichTextFromMarkdown(tab.Muc.Addr().String()))))
 				//chatSidebar.Refresh()
-			})
 		}
 	}
 
