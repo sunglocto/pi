@@ -39,7 +39,7 @@ import (
 var version string = "3.1a"
 var statBar widget.Label
 var chatInfo fyne.Container
-var chatSidebar fyne.Container 
+var chatSidebar fyne.Container
 
 // by sunglocto
 // license AGPL
@@ -59,7 +59,7 @@ type MucTab struct {
 	Messages []Message
 	Scroller *widget.List
 	isMuc    bool
-	Muc *muc.Channel
+	Muc      *muc.Channel
 }
 
 type piConfig struct {
@@ -82,7 +82,7 @@ var connection bool = true
 type myTheme struct{}
 
 func (m myTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
-	return adwaita.AdwaitaTheme().Color(name, variant) 
+	return adwaita.AdwaitaTheme().Color(name, variant)
 }
 
 func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
@@ -436,29 +436,29 @@ func main() {
 		log.Fatalln("Could not create client - " + err.Error())
 	}
 
-/*
-	client.Session.Serve(xmpp.HandlerFunc(func(t xmlstream.TokenReadEncoder, start *xml.StartElement) error {
-    d := xml.NewTokenDecoder(t)
+	/*
+	   	client.Session.Serve(xmpp.HandlerFunc(func(t xmlstream.TokenReadEncoder, start *xml.StartElement) error {
+	       d := xml.NewTokenDecoder(t)
 
-    // Ignore anything that's not a message.
-    if start.Name.Local != "message" {
-        return nil
-    }
+	       // Ignore anything that's not a message.
+	       if start.Name.Local != "message" {
+	           return nil
+	       }
 
-    msg := struct {
-        stanza.Message
-        Body string `xml:"body"`
-    }{}
-    err := d.DecodeElement(&msg, start)
-		if err != nil {
-			return err
-		}
-    if msg.Body != "" {
-        log.Println("Got message: %q", msg.Body)
-    }
-		return nil
-}))
-*/
+	       msg := struct {
+	           stanza.Message
+	           Body string `xml:"body"`
+	       }{}
+	       err := d.DecodeElement(&msg, start)
+	   		if err != nil {
+	   			return err
+	   		}
+	       if msg.Body != "" {
+	           log.Println("Got message: %q", msg.Body)
+	       }
+	   		return nil
+	   }))
+	*/
 	go func() {
 		for connection {
 			err = client.Connect()
@@ -475,8 +475,6 @@ func main() {
 			}
 		}
 	}()
-
-
 
 	a = app.New()
 	a.Settings().SetTheme(myTheme{})
@@ -538,13 +536,13 @@ func main() {
 			})
 		}
 		entry.SetText("")
-	} 
+	}
 
 	sendbtn := widget.NewButton("Send", SendCallback)
 	entry.OnSubmitted = func(s string) {
 		SendCallback()
 		// i fucking hate fyne
-	} 
+	}
 
 	mit := fyne.NewMenuItem("about pi", func() {
 		dialog.ShowInformation("about pi", fmt.Sprintf("the XMPP client from hell\n\npi is an experimental XMPP client\nwritten by Sunglocto in Go.\n\nVersion %s", version), w)
@@ -633,64 +631,64 @@ func main() {
 	})*/
 
 	deb := fyne.NewMenuItem("DEBUG: Attempt to get MAM history from a user", func() {
-				//res, err := history.Fetch(client.Ctx, history.Query{}, jid.MustParse("ringen@muc.isekai.rocks"), client.Session)
+		//res, err := history.Fetch(client.Ctx, history.Query{}, jid.MustParse("ringen@muc.isekai.rocks"), client.Session)
 	})
 	mic := fyne.NewMenuItem("upload a file", func() {
 		var link string
 		var toperr error
 		//var topreader fyne.URIReadCloser
 		dialog.ShowFileOpen(func(reader fyne.URIReadCloser, err error) {
-			go func ()  {
-				
-			if err != nil {
-				dialog.ShowError(err, w)
-				return
-			}
-			if reader == nil {
-				return
-			}
-			bytes, toperr = io.ReadAll(reader)
-			//topreader = reader
-
-			if toperr != nil {
-				dialog.ShowError(toperr, w)
-				return
-			}
-
-			progress := make(chan oasisSdk.UploadProgress)
-			myprogressbar := widget.NewProgressBar()
-			diag := dialog.NewCustom("Uploading file", "Hide", myprogressbar, w)
-			diag.Show()
 			go func() {
-				client.UploadFile(client.Ctx, reader.URI().Path(), progress)
-			}()
 
-			for update := range progress {
-				fyne.Do(func() {
-				myprogressbar.Value = float64(update.Percentage)/100
-				myprogressbar.Refresh()
-				})
+				if err != nil {
+					dialog.ShowError(err, w)
+					return
+				}
+				if reader == nil {
+					return
+				}
+				bytes, toperr = io.ReadAll(reader)
+				//topreader = reader
 
-				if update.Error != nil {
-					diag.Dismiss()
-					dialog.ShowError(update.Error, w)
+				if toperr != nil {
+					dialog.ShowError(toperr, w)
 					return
 				}
 
-				if update.GetURL != "" {
-					link = update.GetURL
-				}
-			}
+				progress := make(chan oasisSdk.UploadProgress)
+				myprogressbar := widget.NewProgressBar()
+				diag := dialog.NewCustom("Uploading file", "Hide", myprogressbar, w)
+				diag.Show()
+				go func() {
+					client.UploadFile(client.Ctx, reader.URI().Path(), progress)
+				}()
 
-			diag.Dismiss()
-			a.Clipboard().SetContent(link)
-			dialog.ShowInformation("file successfully uploaded\nURL copied to your clipboard", link, w)
-		}()
+				for update := range progress {
+					fyne.Do(func() {
+						myprogressbar.Value = float64(update.Percentage) / 100
+						myprogressbar.Refresh()
+					})
+
+					if update.Error != nil {
+						diag.Dismiss()
+						dialog.ShowError(update.Error, w)
+						return
+					}
+
+					if update.GetURL != "" {
+						link = update.GetURL
+					}
+				}
+
+				diag.Dismiss()
+				a.Clipboard().SetContent(link)
+				dialog.ShowInformation("file successfully uploaded\nURL copied to your clipboard", link, w)
+			}()
 
 		}, w)
 	})
 
-	menu_help := fyne.NewMenu("π", mit, reconnect,deb)
+	menu_help := fyne.NewMenu("π", mit, reconnect, deb)
 	menu_changeroom := fyne.NewMenu("β", mic)
 	menu_configureview := fyne.NewMenu("γ", mia, mis, jtt, jtb)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
@@ -773,7 +771,7 @@ func main() {
 	}
 
 	tabs.OnSelected = func(ti *container.TabItem) {
-	selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
 		if !ok {
 			return
 		}
@@ -804,6 +802,6 @@ func main() {
 	}
 
 	statBar.SetText("nothing seems to be happening right now...")
-	w.SetContent(container.NewVSplit(container.NewVSplit(container.NewHSplit(tabs, &chatSidebar), container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar,&chatInfo)))
+	w.SetContent(container.NewVSplit(container.NewVSplit(container.NewHSplit(tabs, &chatSidebar), container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar, &chatInfo)))
 	w.ShowAndRun()
 }
