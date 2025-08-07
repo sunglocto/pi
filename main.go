@@ -25,6 +25,7 @@ import (
 	"mellium.im/xmpp/disco"
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
+	_ "mellium.im/xmpp/mux"
 	oasisSdk "pain.agency/oasis-sdk"
 
 	// gui - optional
@@ -33,7 +34,7 @@ import (
 	// TODO: integrated theme switcher
 )
 
-var version string = "3.1a"
+var version string = "3.14a"
 var statBar widget.Label
 var chatInfo fyne.Container
 var chatSidebar fyne.Container
@@ -42,21 +43,25 @@ var chatSidebar fyne.Container
 // license AGPL
 
 type Message struct {
-	Author   string
-	Content  string
-	ID       string
-	ReplyID  string
-	ImageURL string
-	Raw      oasisSdk.XMPPChatMessage
+	Author    string
+	Content   string
+	ID        string
+	ReplyID   string
+	ImageURL  string
+	Raw       oasisSdk.XMPPChatMessage
+	Important bool
 }
 
 type MucTab struct {
-	Jid      jid.JID
-	Nick     string
-	Messages []Message
-	Scroller *widget.List
-	isMuc    bool
-	Muc      *muc.Channel
+	Jid                 jid.JID
+	Nick                string
+	Messages            []Message
+	Scroller            *widget.List
+	isMuc               bool
+	Muc                 *muc.Channel
+	Sidebar             *fyne.Container
+	UpdateSidebar       bool
+	SidebarUpdateMethod func(client oasisSdk.XmppClient)
 }
 
 type piConfig struct {
@@ -109,10 +114,27 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 	}
 
 	tabData := &MucTab{
-		Jid:      chatJid,
-		Nick:     nick,
-		Messages: []Message{},
-		isMuc:    isMuc,
+		Jid:           chatJid,
+		Nick:          nick,
+		Messages:      []Message{},
+		isMuc:         isMuc,
+		Sidebar:       container.NewVBox(widget.NewRichTextFromMarkdown("# "+chatJid.Localpart()), widget.NewLabel("please wait for more information...")),
+		UpdateSidebar: true,
+	}
+
+	if isMuc {
+		tabData.SidebarUpdateMethod = func(client oasisSdk.XmppClient) {
+			fyne.Do(func() {
+				if chatTabs[mucJidStr].UpdateSidebar {
+					i, _ := disco.GetInfo(client.Ctx, "identity", tabData.Jid, client.Session)
+					name := i.XMLName
+					chatTabs[mucJidStr].Sidebar = container.NewVBox(widget.NewRichTextFromMarkdown("# "+chatJid.Localpart()), widget.NewLabel(fmt.Sprintf("%d messages loaded", len(tabData.Messages))), widget.NewLabel(name.Space))
+					chatTabs[mucJidStr].UpdateSidebar = false
+					chatSidebar = *chatTabs[mucJidStr].Sidebar
+					chatSidebar.Refresh()
+				}
+			})
+		}
 	}
 
 	var scroller *widget.List
@@ -125,6 +147,7 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 			author.TextStyle.Bold = true
 			content := widget.NewLabel("content")
 			content.Wrapping = fyne.TextWrapWord
+			content.Selectable = true
 			icon := theme.FileVideoIcon()
 			btn := widget.NewButtonWithIcon("View media", icon, func() {
 
@@ -136,6 +159,9 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 			author := vbox.Objects[0].(*widget.Label)
 			content := vbox.Objects[1].(*widget.Label)
 			btn := vbox.Objects[2].(*widget.Button)
+			if tabData.Messages[i].Important {
+				//content.Importance = widget.DangerImportance TODO: Fix highlighting messages with mentions, it's currently broken
+			}
 			btn.Hidden = true // Hide by default
 			msgContent := tabData.Messages[i].Content
 			if tabData.Messages[i].ImageURL != "" {
@@ -186,7 +212,6 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 	}
 
 	scroller.CreateItem()
-
 	tabData.Scroller = scroller
 
 	chatTabs[mucJidStr] = tabData
@@ -228,7 +253,7 @@ func dropToSignInPage(reason string) {
 				config.Login.User = userEntry.Text
 				config.Login.Password = passwordEntry.Text
 				config.Login.DisplayName = nicknameEntry.Text
-				config.Notifications = true
+				config.Notifications = false
 				config.Login.MucsToJoin = append(config.Login.MucsToJoin, "ringen@muc.isekai.rocks") // DEBUG
 
 				bytes, err := xml.MarshalIndent(config, "", "\t")
@@ -347,6 +372,7 @@ func main() {
 			// HACK: IGNORING ALL MESSAGES FROM CLASSIC MUC HISTORY IN PREPARATION OF MAM SUPPORT
 			ignore := false
 			correction := false
+			important := false
 			for _, v := range msg.Unknown {
 				if v.XMLName.Local == "delay" { // CLasic history message
 					//ignore = true
@@ -365,6 +391,10 @@ func main() {
 			if tab, ok := chatTabs[mucJidStr]; ok {
 				chatTabs[mucJidStr].Muc = muc
 				str := *msg.CleanedBody
+				if strings.Contains(str, login.DisplayName) {
+					fmt.Println(str)
+					important = true
+				}
 				if !ignore && notifications {
 					if !correction && msg.From.String() != client.JID.String() && strings.Contains(str, login.DisplayName) || (msg.Reply != nil && strings.Contains(msg.Reply.To, login.DisplayName)) {
 						a.SendNotification(fyne.NewNotification(fmt.Sprintf("Mentioned in %s", mucJidStr), str))
@@ -397,11 +427,11 @@ func main() {
 				}
 
 				if correction {
-					for i := len(tab.Messages)-1; i > 0; i-- {
+					for i := len(tab.Messages) - 1; i > 0; i-- {
 						if tab.Messages[i].Raw.From.String() == msg.From.String() {
 							tab.Messages[i].Content = *msg.CleanedBody + " (edited)"
 							fyne.Do(func() {
-							tab.Scroller.Refresh()
+								tab.Scroller.Refresh()
 							})
 							return
 						}
@@ -409,12 +439,13 @@ func main() {
 				}
 
 				myMessage := Message{
-					Author:   msg.From.Resourcepart(),
-					Content:  str,
-					ID:       msg.ID,
-					ReplyID:  replyID,
-					Raw:      *msg,
-					ImageURL: ImageID,
+					Author:    msg.From.Resourcepart(),
+					Content:   str,
+					ID:        msg.ID,
+					ReplyID:   replyID,
+					Raw:       *msg,
+					ImageURL:  ImageID,
+					Important: important,
 				}
 				if !ignore {
 					tab.Messages = append(tab.Messages, myMessage)
@@ -463,29 +494,6 @@ func main() {
 		log.Fatalln("Could not create client - " + err.Error())
 	}
 
-	/*
-	   	client.Session.Serve(xmpp.HandlerFunc(func(t xmlstream.TokenReadEncoder, start *xml.StartElement) error {
-	       d := xml.NewTokenDecoder(t)
-
-	       // Ignore anything that's not a message.
-	       if start.Name.Local != "message" {
-	           return nil
-	       }
-
-	       msg := struct {
-	           stanza.Message
-	           Body string `xml:"body"`
-	       }{}
-	       err := d.DecodeElement(&msg, start)
-	   		if err != nil {
-	   			return err
-	   		}
-	       if msg.Body != "" {
-	           log.Println("Got message: %q", msg.Body)
-	       }
-	   		return nil
-	   }))
-	*/
 	go func() {
 		for connection {
 			err = client.Connect()
@@ -541,11 +549,23 @@ func main() {
 		go func() {
 			if replying {
 				m := chatTabs[activeMucJid].Messages[selectedId].Raw
-				client.ReplyToEvent(&m, text)
+				err = client.ReplyToEvent(&m, text)
+				if err != nil {
+					dialog.ShowError(err, w)
+				}
 				return
 			}
 
+			url, uerr := url.Parse(strings.Split(text, " ")[0])
+			if uerr == nil && strings.HasPrefix(strings.Split(text, " ")[0], "https://") {
+				err = client.SendImage(jid.MustParse(activeMucJid).Bare(), text, url.String(), &text)
+				if err != nil {
+					dialog.ShowError(err, w)
+				}
+				return
+			}
 			err = client.SendText(jid.MustParse(activeMucJid).Bare(), text)
+
 			if err != nil {
 				dialog.ShowError(err, w)
 			}
@@ -722,23 +742,48 @@ func main() {
 		}, w)
 	})
 
-	servDisc := fyne.NewMenuItem("Service discovery", func() {
+	servDisc := fyne.NewMenuItem("Disco features", func() {
+		var search jid.JID
+		dialog.ShowEntryDialog("Disco features", "JID: ", func(s string) { // TODO: replace with undeprecated widget
+			search, err = jid.Parse(s)
+			if err != nil {
+				dialog.ShowError(err, w)
+				return
+			}
 
-		myBox := container.NewVBox()
-		info, err := disco.GetInfo(client.Ctx, "", jid.MustParse("ringen@muc.isekai.rocks"), client.Session)
-		if err != nil {
-			dialog.ShowError(err, w)
-		}
-		m := info.Features
-		for _, v := range m {
-			myBox.Objects = append(myBox.Objects, widget.NewLabel(v.Var))
-			myBox.Refresh()
-		}
+			myBox := container.NewGridWithColumns(1, widget.NewLabel("Items\na\na\na\na\na"))
+			info, err := disco.GetInfo(client.Ctx, "", search, client.Session)
+			if err != nil {
+				dialog.ShowError(err, w)
+				return
+			}
+			m := info.Features
+			for _, v := range m {
+				myBox.Add(widget.NewLabel(v.Var))
+				myBox.Refresh()
+			}
 
-		dialog.ShowCustom("things", "cancel", myBox, w)
+			dialog.ShowCustom("Features", "cancel", myBox, w)
+
+		}, w)
 	})
 
-	menu_help := fyne.NewMenu("π", mit, reconnect, deb)
+	rel := fyne.NewMenuItem("Forcefully reload tab sidebar", func() {
+		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		if !ok {
+			return
+		}
+		var activeMucJid string
+		for jid, tabData := range chatTabs {
+			if tabData.Scroller == selectedScroller {
+				activeMucJid = jid
+				break
+			}
+		}
+		chatTabs[activeMucJid].UpdateSidebar = true
+		go chatTabs[activeMucJid].SidebarUpdateMethod(*client)
+	})
+	menu_help := fyne.NewMenu("π", mit, reconnect, deb, rel)
 	menu_changeroom := fyne.NewMenu("β", mic, servDisc)
 	menu_configureview := fyne.NewMenu("γ", mia, mis, jtt, jtb)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
@@ -828,6 +873,8 @@ func main() {
 			}
 		}
 
+		chatTabs[activeChatJid].SidebarUpdateMethod(*client)
+
 		tab := chatTabs[activeChatJid]
 		if tab.isMuc {
 			chatInfo = *container.NewHBox(widget.NewLabel(tab.Muc.Addr().String()))
@@ -835,13 +882,11 @@ func main() {
 			chatInfo = *container.NewHBox(widget.NewLabel(tab.Jid.String()))
 		}
 
-		if tab.isMuc {
-				chatSidebar = *container.NewStack(container.NewVScroll(container.NewVBox(widget.NewRichTextFromMarkdown(fmt.Sprintf("# %s", tab.Jid.String())), widget.NewRichTextFromMarkdown(tab.Muc.Addr().String()))))
-				//chatSidebar.Refresh()
-		}
+		chatSidebar = *tab.Sidebar
+		chatSidebar.Refresh()
 	}
 
-	statBar.SetText("nothing seems to be happening right now...")
+	statBar.SetText("")
 	w.SetContent(container.NewVSplit(container.NewVSplit(container.NewHSplit(tabs, &chatSidebar), container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar, &chatInfo)))
 	w.ShowAndRun()
 }
