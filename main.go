@@ -25,7 +25,6 @@ import (
 	"mellium.im/xmpp/disco"
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
-	_ "mellium.im/xmpp/mux"
 	oasisSdk "pain.agency/oasis-sdk"
 
 	// gui - optional
@@ -254,7 +253,6 @@ func dropToSignInPage(reason string) {
 				config.Login.Password = passwordEntry.Text
 				config.Login.DisplayName = nicknameEntry.Text
 				config.Notifications = false
-				config.Login.MucsToJoin = append(config.Login.MucsToJoin, "ringen@muc.isekai.rocks") // DEBUG
 
 				bytes, err := xml.MarshalIndent(config, "", "\t")
 				if err != nil {
@@ -684,9 +682,9 @@ func main() {
 
 	})
 
-	deb := fyne.NewMenuItem("DEBUG: Attempt to get MAM history from a user", func() {
+	//deb := fyne.NewMenuItem("DEBUG: Attempt to get MAM history from a user", func() {
 		//res, err := history.Fetch(client.Ctx, history.Query{}, jid.MustParse("ringen@muc.isekai.rocks"), client.Session)
-	})
+	//})
 	mic := fyne.NewMenuItem("upload a file", func() {
 		var link string
 		var toperr error
@@ -783,9 +781,26 @@ func main() {
 		chatTabs[activeMucJid].UpdateSidebar = true
 		go chatTabs[activeMucJid].SidebarUpdateMethod(*client)
 	})
-	menu_help := fyne.NewMenu("π", mit, reconnect, deb, rel)
+	menu_help := fyne.NewMenu("π", mit, reconnect, rel)
 	menu_changeroom := fyne.NewMenu("β", mic, servDisc)
 	menu_configureview := fyne.NewMenu("γ", mia, mis, jtt, jtb)
+	hafjag := fyne.NewMenuItem("Hafjag", func() {
+		entry.Text = "Hafjag"
+		SendCallback()
+		entry.Text = "Hafjag"
+	})
+
+	hotfuck := fyne.NewMenuItem("Hot Fuck", func() {
+		entry.Text = "Hot Fuck"
+		SendCallback()
+		entry.Text = "Oh Yeah."
+	})
+
+	mycurrenttime := fyne.NewMenuItem("Current time", func() {
+		entry.Text = fmt.Sprintf("It is currently %s", time.Now().Format(time.RFC850))
+		SendCallback()
+	})
+	menu_jokes := fyne.NewMenu("Δ", mycurrenttime, hafjag, hotfuck)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
 		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
 		if !ok {
@@ -835,7 +850,7 @@ func main() {
 		dialog.ShowCustom("Message", "Close", pre, w)
 	})
 	menu_messageoptions := fyne.NewMenu("Σ", bit, bia, bic)
-	ma := fyne.NewMainMenu(menu_help, menu_changeroom, menu_configureview, menu_messageoptions)
+	ma := fyne.NewMainMenu(menu_help, menu_changeroom, menu_configureview, menu_messageoptions, menu_jokes)
 	w.SetMainMenu(ma)
 
 	tabs = container.NewAppTabs(
