@@ -123,7 +123,7 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 		func() fyne.CanvasObject {
 			author := widget.NewLabel("author")
 			author.TextStyle.Bold = true
-			content := widget.NewRichTextWithText("content")
+			content := widget.NewLabel("content")
 			content.Wrapping = fyne.TextWrapWord
 			icon := theme.FileVideoIcon()
 			btn := widget.NewButtonWithIcon("View media", icon, func() {
@@ -134,7 +134,7 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 		func(i widget.ListItemID, co fyne.CanvasObject) {
 			vbox := co.(*fyne.Container)
 			author := vbox.Objects[0].(*widget.Label)
-			content := vbox.Objects[1].(*widget.RichText)
+			content := vbox.Objects[1].(*widget.Label)
 			btn := vbox.Objects[2].(*widget.Button)
 			btn.Hidden = true // Hide by default
 			msgContent := tabData.Messages[i].Content
@@ -171,7 +171,8 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 			}
 			msgContent = strings.Join(lines, "\n")
 
-			content.ParseMarkdown(msgContent)
+			//content.ParseMarkdown(msgContent)
+			content.SetText(msgContent)
 			if tabData.Messages[i].ReplyID != "PICLIENT:UNAVAILABLE" {
 				author.SetText(fmt.Sprintf("%s > %s", tabData.Messages[i].Author, jid.MustParse(tabData.Messages[i].Raw.Reply.To).Resourcepart()))
 			} else {
@@ -305,10 +306,10 @@ func main() {
 					lines := strings.Split(str, "\n")
 					for i, line := range lines {
 						s := strings.Split(line, " ")
-						for j, v := range s {
+						for _, v := range s {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
-								s[j] = fmt.Sprintf("[%s](%s)", v, v)
+								//s[j] = fmt.Sprintf("[%s](%s)", v, v)
 								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
 									img = v
 								}
@@ -373,10 +374,10 @@ func main() {
 					lines := strings.Split(str, "\n")
 					for i, line := range lines {
 						s := strings.Split(line, " ")
-						for j, v := range s {
+						for _, v := range s {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
-								s[j] = fmt.Sprintf("[%s](%s)", v, v)
+								//s[j] = fmt.Sprintf("[%s](%s)", v, v)
 								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
 									ImageID = v
 								}
