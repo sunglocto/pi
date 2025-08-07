@@ -56,12 +56,15 @@ type ChatTab struct {
 	Jid                 jid.JID
 	Nick                string
 	Messages            []Message
-	Scroller            *widget.List `xml:"-"`
 	isMuc               bool
-	Muc                 *muc.Channel `xml:"-"`
-	Sidebar             *fyne.Container `xml:"-"`
+	Muc                 muc.Channel
 	UpdateSidebar       bool
-	SidebarUpdateMethod func(client oasisSdk.XmppClient) `xml:"-"`
+}
+
+type ChatTabUI struct {
+	Internal *ChatTab
+	Scroller            *widget.List `xml:"-"`
+	Sidebar             *fyne.Container `xml:"-"`
 }
 
 type piConfig struct {
@@ -75,7 +78,9 @@ var login oasisSdk.LoginInfo
 var DMs []string
 
 var chatTabs = make(map[string]*ChatTab)
-var tabs *container.AppTabs
+var UITabs = make(map[string]*ChatTabUI)
+
+var AppTabs *container.AppTabs
 var selectedId widget.ListItemID
 var replying bool = false
 var notifications bool
@@ -106,41 +111,11 @@ var scrollDownOnNewMessage bool = true
 var w fyne.Window
 var a fyne.App
 
-func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
-	mucJidStr := chatJid.String()
-	if _, ok := chatTabs[mucJidStr]; ok {
-		// Tab already exists
-		return
-	}
-
-	tabData := &ChatTab{
-		Jid:           chatJid,
-		Nick:          nick,
-		Messages:      []Message{},
-		isMuc:         isMuc,
-		Sidebar:       container.NewVBox(widget.NewRichTextFromMarkdown("# "+chatJid.Localpart()), widget.NewLabel("please wait for more information...")),
-		UpdateSidebar: true,
-	}
-
-	if isMuc {
-		tabData.SidebarUpdateMethod = func(client oasisSdk.XmppClient) {
-			fyne.Do(func() {
-				if chatTabs[mucJidStr].UpdateSidebar {
-					i, _ := disco.GetInfo(client.Ctx, "identity", tabData.Jid, client.Session)
-					name := i.XMLName
-					chatTabs[mucJidStr].Sidebar = container.NewVBox(widget.NewRichTextFromMarkdown("# "+chatJid.Localpart()), widget.NewLabel(fmt.Sprintf("%d messages loaded", len(tabData.Messages))), widget.NewLabel(name.Space))
-					chatTabs[mucJidStr].UpdateSidebar = false
-					chatSidebar = *chatTabs[mucJidStr].Sidebar
-					chatSidebar.Refresh()
-				}
-			})
-		}
-	}
-
+func CreateUITab(chatJidStr string) ChatTabUI {
 	var scroller *widget.List
 	scroller = widget.NewList(
 		func() int {
-			return len(tabData.Messages)
+			return len(chatTabs[chatJidStr].Messages)
 		},
 		func() fyne.CanvasObject {
 			author := widget.NewLabel("author")
@@ -159,22 +134,22 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 			author := vbox.Objects[0].(*widget.Label)
 			content := vbox.Objects[1].(*widget.Label)
 			btn := vbox.Objects[2].(*widget.Button)
-			if tabData.Messages[i].Important {
+			if chatTabs[chatJidStr].Messages[i].Important {
 				//content.Importance = widget.DangerImportance TODO: Fix highlighting messages with mentions, it's currently broken
 			}
 			btn.Hidden = true // Hide by default
-			msgContent := tabData.Messages[i].Content
-			if tabData.Messages[i].ImageURL != "" {
+			msgContent := chatTabs[chatJidStr].Messages[i].Content
+			if chatTabs[chatJidStr].Messages[i].ImageURL != "" {
 				btn.Hidden = false
 				btn.OnTapped = func() {
 					fyne.Do(func() {
-						u, err := storage.ParseURI(tabData.Messages[i].ImageURL)
+						u, err := storage.ParseURI(chatTabs[chatJidStr].Messages[i].ImageURL)
 						if err != nil {
 							dialog.ShowError(err, w)
 							return
 						}
-						if strings.HasSuffix(tabData.Messages[i].ImageURL, "mp4") {
-							url, err := url.Parse(tabData.Messages[i].ImageURL)
+						if strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp4") {
+							url, err := url.Parse(chatTabs[chatJidStr].Messages[i].ImageURL)
 							if err != nil {
 								dialog.ShowError(err, w)
 								return
@@ -199,25 +174,53 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 
 			//content.ParseMarkdown(msgContent)
 			content.SetText(msgContent)
-			if tabData.Messages[i].ReplyID != "PICLIENT:UNAVAILABLE" {
-				author.SetText(fmt.Sprintf("%s > %s", tabData.Messages[i].Author, jid.MustParse(tabData.Messages[i].Raw.Reply.To).Resourcepart()))
+			if chatTabs[chatJidStr].Messages[i].ReplyID != "PICLIENT:UNAVAILABLE" {
+				author.SetText(fmt.Sprintf("%s > %s", chatTabs[chatJidStr].Messages[i].Author, jid.MustParse(chatTabs[chatJidStr].Messages[i].Raw.Reply.To).Resourcepart()))
 			} else {
-				author.SetText(tabData.Messages[i].Author)
+				author.SetText(chatTabs[chatJidStr].Messages[i].Author)
 			}
 			scroller.SetItemHeight(i, vbox.MinSize().Height)
 		},
 	)
+
+
+
 	scroller.OnSelected = func(id widget.ListItemID) {
 		selectedId = id
 	}
 
+	myUITab := ChatTabUI{}
+
 	scroller.CreateItem()
-	tabData.Scroller = scroller
+	myUITab.Scroller = scroller
+	myUITab.Sidebar = container.NewVBox(widget.NewLabel("Data goes here")) 
 
-	chatTabs[mucJidStr] = tabData
+	return myUITab
+}
+func addChatTab(isMuc bool, chatJid jid.JID, nick string) { 
 
-	tabItem := container.NewTabItem(chatJid.Localpart(), scroller)
-	tabs.Append(tabItem)
+	chatJidStr := chatJid.String()
+	if _, ok := chatTabs[chatJidStr]; ok {
+		// Tab already exists
+		return
+	}
+
+	myChatTab := ChatTab{
+		Jid:           chatJid,
+		Nick:          nick,
+		Messages:      []Message{},
+		isMuc:         isMuc,
+	}
+
+	myUITab := CreateUITab(chatJid.String())
+	myUITab.Internal = &myChatTab
+
+	chatTabs[chatJidStr] = &myChatTab
+	UITabs[chatJidStr] = &myUITab 
+
+	fyne.Do(func() {
+		AppTabs.Append(container.NewTabItem(chatJid.String(), myUITab.Scroller))
+	})
 }
 
 func dropToSignInPage(reason string) {
@@ -360,9 +363,9 @@ func main() {
 
 				tab.Messages = append(tab.Messages, myMessage)
 				fyne.Do(func() {
-					tab.Scroller.Refresh()
+					UITabs[userJidStr].Scroller.Refresh()
 					if scrollDownOnNewMessage {
-						tab.Scroller.ScrollToBottom()
+						UITabs[userJidStr].Scroller.ScrollToBottom()
 					}
 				})
 			}
@@ -388,7 +391,7 @@ func main() {
 			var ImageID string = ""
 			mucJidStr := msg.From.Bare().String()
 			if tab, ok := chatTabs[mucJidStr]; ok {
-				chatTabs[mucJidStr].Muc = muc
+				chatTabs[mucJidStr].Muc = *muc
 				str := *msg.CleanedBody
 				if strings.Contains(str, login.DisplayName) {
 					fmt.Println(str)
@@ -430,7 +433,7 @@ func main() {
 						if tab.Messages[i].Raw.From.String() == msg.From.String() {
 							tab.Messages[i].Content = *msg.CleanedBody + " (edited)"
 							fyne.Do(func() {
-								tab.Scroller.Refresh()
+								UITabs[mucJidStr].Scroller.Refresh()
 							})
 							return
 						}
@@ -450,9 +453,9 @@ func main() {
 					tab.Messages = append(tab.Messages, myMessage)
 				}
 				fyne.Do(func() {
-					tab.Scroller.Refresh()
+					UITabs[mucJidStr].Scroller.Refresh()
 					if scrollDownOnNewMessage {
-						tab.Scroller.ScrollToBottom()
+						UITabs[mucJidStr].Scroller.ScrollToBottom()
 					}
 				})
 			}
@@ -522,21 +525,21 @@ func main() {
 
 	SendCallback := func() {
 		text := entry.Text
-		if tabs.Selected() == nil || tabs.Selected().Content == nil || text == "" {
+		if AppTabs.Selected() == nil || AppTabs.Selected().Content == nil || text == "" {
 			return
 		}
 
-		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
 			return
 		}
 
 		var activeMucJid string
 		var isMuc bool
-		for jid, tabData := range chatTabs {
+		for jid, tabData := range UITabs {
 			if tabData.Scroller == selectedScroller {
 				activeMucJid = jid
-				isMuc = tabData.isMuc
+				isMuc = chatTabs[activeMucJid].isMuc
 				break
 			}
 		}
@@ -578,7 +581,7 @@ func main() {
 			})
 			fyne.Do(func() {
 				if scrollDownOnNewMessage {
-					chatTabs[activeMucJid].Scroller.ScrollToBottom()
+					UITabs[activeMucJid].Scroller.ScrollToBottom()
 				}
 			})
 		}
@@ -633,8 +636,9 @@ func main() {
 		}, w)
 	})
 
+
 	jtb := fyne.NewMenuItem("jump to bottom", func() {
-		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
 			return
 		}
@@ -642,7 +646,7 @@ func main() {
 	})
 
 	jtt := fyne.NewMenuItem("jump to top", func() {
-		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
 			return
 		}
@@ -767,21 +771,6 @@ func main() {
 		}, w)
 	})
 
-	rel := fyne.NewMenuItem("Forcefully reload tab sidebar", func() {
-		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
-		if !ok {
-			return
-		}
-		var activeMucJid string
-		for jid, tabData := range chatTabs {
-			if tabData.Scroller == selectedScroller {
-				activeMucJid = jid
-				break
-			}
-		}
-		chatTabs[activeMucJid].UpdateSidebar = true
-		go chatTabs[activeMucJid].SidebarUpdateMethod(*client)
-	})
 
 	savedata := fyne.NewMenuItem("DEBUG: Save tab data to disk", func() {
 		d := []ChatTab{}
@@ -796,7 +785,7 @@ func main() {
 		os.Create("test.xml")
 		os.WriteFile("text.xml", b, os.ModeAppend)
 	})
-	menu_help := fyne.NewMenu("π", mit, reconnect, rel, savedata)
+	menu_help := fyne.NewMenu("π", mit, reconnect, savedata)
 	menu_changeroom := fyne.NewMenu("β", mic, servDisc)
 	menu_configureview := fyne.NewMenu("γ", mia, mis, jtt, jtb)
 	hafjag := fyne.NewMenuItem("Hafjag", func() {
@@ -817,12 +806,12 @@ func main() {
 	})
 	menu_jokes := fyne.NewMenu("Δ", mycurrenttime, hafjag, hotfuck)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
-		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
 			return
 		}
 		var activeMucJid string
-		for jid, tabData := range chatTabs {
+		for jid, tabData := range UITabs {
 			if tabData.Scroller == selectedScroller {
 				activeMucJid = jid
 				break
@@ -840,13 +829,13 @@ func main() {
 	bic := fyne.NewMenuItem("show message XML", func() {
 		pre := widget.NewLabel("")
 
-		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
 			return
 		}
 
 		var activeChatJid string
-		for jid, tabData := range chatTabs {
+		for jid, tabData := range UITabs {
 			if tabData.Scroller == selectedScroller {
 				activeChatJid = jid
 				break
@@ -868,7 +857,7 @@ func main() {
 	ma := fyne.NewMainMenu(menu_help, menu_changeroom, menu_configureview, menu_messageoptions, menu_jokes)
 	w.SetMainMenu(ma)
 
-	tabs = container.NewAppTabs(
+	AppTabs = container.NewAppTabs(
 		container.NewTabItem("τίποτα", widget.NewLabel(`
 		pi
 		`)),
@@ -889,34 +878,35 @@ func main() {
 		}
 	}
 
-	tabs.OnSelected = func(ti *container.TabItem) {
-		selectedScroller, ok := tabs.Selected().Content.(*widget.List)
+	AppTabs.OnSelected = func(ti *container.TabItem) {
+		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
 			return
 		}
 
 		var activeChatJid string
-		for jid, tabData := range chatTabs {
+		for jid, tabData := range UITabs {
 			if tabData.Scroller == selectedScroller {
 				activeChatJid = jid
 				break
 			}
 		}
 
-		chatTabs[activeChatJid].SidebarUpdateMethod(*client)
+
 
 		tab := chatTabs[activeChatJid]
+		UITab := UITabs[activeChatJid]
 		if tab.isMuc {
 			chatInfo = *container.NewHBox(widget.NewLabel(tab.Muc.Addr().String()))
 		} else {
 			chatInfo = *container.NewHBox(widget.NewLabel(tab.Jid.String()))
 		}
 
-		chatSidebar = *tab.Sidebar
+		chatSidebar = *UITab.Sidebar
 		chatSidebar.Refresh()
 	}
 
 	statBar.SetText("")
-	w.SetContent(container.NewVSplit(container.NewVSplit(container.NewHSplit(tabs, &chatSidebar), container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar, &chatInfo)))
+	w.SetContent(container.NewVSplit(container.NewVSplit(container.NewHSplit(AppTabs, &chatSidebar), container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar, &chatInfo)))
 	w.ShowAndRun()
 }
