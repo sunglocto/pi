@@ -1,4 +1,4 @@
-module pi
+module pi-im
 
 go 1.24.5
 
