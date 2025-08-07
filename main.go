@@ -54,18 +54,18 @@ type Message struct {
 }
 
 type ChatTab struct {
-	Jid                 jid.JID
-	Nick                string
-	Messages            []Message
-	isMuc               bool
-	Muc                 muc.Channel
-	UpdateSidebar       bool
+	Jid           jid.JID
+	Nick          string
+	Messages      []Message
+	isMuc         bool
+	Muc           muc.Channel
+	UpdateSidebar bool
 }
 
 type ChatTabUI struct {
 	Internal *ChatTab
-	Scroller            *widget.List `xml:"-"`
-	Sidebar             *fyne.Container `xml:"-"`
+	Scroller *widget.List    `xml:"-"`
+	Sidebar  *fyne.Container `xml:"-"`
 }
 
 type piConfig struct {
@@ -122,7 +122,7 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 			gen, _ := identicon.New("github", 5, 3)
 			ii, _ := gen.Draw("default")
 			im := ii.Image(25)
-			ico := canvas.NewImageFromImage(im) 
+			ico := canvas.NewImageFromImage(im)
 			ico.FillMode = canvas.ImageFillOriginal
 			author := widget.NewLabel("author")
 			author.TextStyle.Bold = true
@@ -201,8 +201,6 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 		},
 	)
 
-
-
 	scroller.OnSelected = func(id widget.ListItemID) {
 		selectedId = id
 	}
@@ -211,11 +209,11 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 
 	scroller.CreateItem()
 	myUITab.Scroller = scroller
-	myUITab.Sidebar = container.NewVBox(widget.NewLabel("Data goes here")) 
+	myUITab.Sidebar = container.NewVBox(widget.NewLabel("Data goes here"))
 
 	return myUITab
 }
-func addChatTab(isMuc bool, chatJid jid.JID, nick string) { 
+func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 
 	chatJidStr := chatJid.String()
 	if _, ok := chatTabs[chatJidStr]; ok {
@@ -224,17 +222,17 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 	}
 
 	myChatTab := ChatTab{
-		Jid:           chatJid,
-		Nick:          nick,
-		Messages:      []Message{},
-		isMuc:         isMuc,
+		Jid:      chatJid,
+		Nick:     nick,
+		Messages: []Message{},
+		isMuc:    isMuc,
 	}
 
 	myUITab := CreateUITab(chatJid.String())
 	myUITab.Internal = &myChatTab
 
 	chatTabs[chatJidStr] = &myChatTab
-	UITabs[chatJidStr] = &myUITab 
+	UITabs[chatJidStr] = &myUITab
 
 	fyne.Do(func() {
 		AppTabs.Append(container.NewTabItem(chatJid.String(), myUITab.Scroller))
@@ -655,7 +653,6 @@ func main() {
 		}, w)
 	})
 
-
 	jtb := fyne.NewMenuItem("jump to bottom", func() {
 		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
@@ -707,7 +704,7 @@ func main() {
 	})
 
 	//deb := fyne.NewMenuItem("DEBUG: Attempt to get MAM history from a user", func() {
-		//res, err := history.Fetch(client.Ctx, history.Query{}, jid.MustParse("ringen@muc.isekai.rocks"), client.Session)
+	//res, err := history.Fetch(client.Ctx, history.Query{}, jid.MustParse("ringen@muc.isekai.rocks"), client.Session)
 	//})
 	mic := fyne.NewMenuItem("upload a file", func() {
 		var link string
@@ -789,7 +786,6 @@ func main() {
 
 		}, w)
 	})
-
 
 	savedata := fyne.NewMenuItem("DEBUG: Save tab data to disk", func() {
 		d := []ChatTab{}
@@ -910,8 +906,6 @@ func main() {
 				break
 			}
 		}
-
-
 
 		tab := chatTabs[activeChatJid]
 		UITab := UITabs[activeChatJid]
