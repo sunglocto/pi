@@ -264,7 +264,7 @@ func dropToSignInPage(reason string) {
 func main() {
 	muc.Since(time.Now())
 	config = piConfig{}
-	a = app.NewWithID("pi-ism")
+	a = app.NewWithID("pi-im")
 	reader, err := a.Storage().Open("pi.xml")
 	if err != nil {
 		dropToSignInPage(err.Error())
