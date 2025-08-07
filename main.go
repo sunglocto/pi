@@ -21,6 +21,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"github.com/rrivera/identicon"
 
 	// xmpp - required
 	"mellium.im/xmpp/disco"
@@ -118,6 +119,11 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 			return len(chatTabs[chatJidStr].Messages)
 		},
 		func() fyne.CanvasObject {
+			gen, _ := identicon.New("github", 5, 3)
+			ii, _ := gen.Draw("default")
+			im := ii.Image(25)
+			ico := canvas.NewImageFromImage(im) 
+			ico.FillMode = canvas.ImageFillOriginal
 			author := widget.NewLabel("author")
 			author.TextStyle.Bold = true
 			content := widget.NewLabel("content")
@@ -127,11 +133,23 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 			btn := widget.NewButtonWithIcon("View media", icon, func() {
 
 			})
-			return container.NewVBox(author, content, btn)
+			return container.NewVBox(container.NewHBox(ico, author), content, btn)
 		},
 		func(i widget.ListItemID, co fyne.CanvasObject) {
 			vbox := co.(*fyne.Container)
-			author := vbox.Objects[0].(*widget.Label)
+			authorBox := vbox.Objects[0].(*fyne.Container)
+			// generate a Icon
+
+			gen, _ := identicon.New("github", 5, 3)
+			ii, _ := gen.Draw(chatTabs[chatJidStr].Messages[i].Author)
+			im := ii.Image(25)
+			authorBox.Objects[0] = canvas.NewImageFromImage(im)
+			authorBox.Objects[0].(*canvas.Image).FillMode = canvas.ImageFillOriginal
+			authorBox.Objects[0].Refresh()
+
+			// Icon generate end
+
+			author := authorBox.Objects[1].(*widget.Label)
 			content := vbox.Objects[1].(*widget.Label)
 			btn := vbox.Objects[2].(*widget.Button)
 			if chatTabs[chatJidStr].Messages[i].Important {
@@ -291,6 +309,7 @@ func dropToSignInPage(reason string) {
 
 func main() {
 	muc.Since(time.Now())
+
 	config = piConfig{}
 	a = app.NewWithID("pi-im")
 	reader, err := a.Storage().Open("pi.xml")

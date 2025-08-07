@@ -5,6 +5,7 @@ go 1.24.5
 require (
 	fyne.io/fyne/v2 v2.6.2
 	fyne.io/x/fyne v0.0.0-20250418202416-58a230ad1acb
+	github.com/rrivera/identicon v0.0.0-20240116195454-d5ba35832c0d
 	mellium.im/xmpp v0.22.0
 	pain.agency/oasis-sdk v0.0.0-20250805052243-df6be3f9f629
 )
