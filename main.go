@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -51,16 +52,16 @@ type Message struct {
 	Important bool
 }
 
-type MucTab struct {
+type ChatTab struct {
 	Jid                 jid.JID
 	Nick                string
 	Messages            []Message
-	Scroller            *widget.List
+	Scroller            *widget.List `xml:"-"`
 	isMuc               bool
-	Muc                 *muc.Channel
-	Sidebar             *fyne.Container
+	Muc                 *muc.Channel `xml:"-"`
+	Sidebar             *fyne.Container `xml:"-"`
 	UpdateSidebar       bool
-	SidebarUpdateMethod func(client oasisSdk.XmppClient)
+	SidebarUpdateMethod func(client oasisSdk.XmppClient) `xml:"-"`
 }
 
 type piConfig struct {
@@ -73,7 +74,7 @@ var config piConfig
 var login oasisSdk.LoginInfo
 var DMs []string
 
-var chatTabs = make(map[string]*MucTab)
+var chatTabs = make(map[string]*ChatTab)
 var tabs *container.AppTabs
 var selectedId widget.ListItemID
 var replying bool = false
@@ -112,7 +113,7 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 		return
 	}
 
-	tabData := &MucTab{
+	tabData := &ChatTab{
 		Jid:           chatJid,
 		Nick:          nick,
 		Messages:      []Message{},
@@ -781,7 +782,21 @@ func main() {
 		chatTabs[activeMucJid].UpdateSidebar = true
 		go chatTabs[activeMucJid].SidebarUpdateMethod(*client)
 	})
-	menu_help := fyne.NewMenu("π", mit, reconnect, rel)
+
+	savedata := fyne.NewMenuItem("DEBUG: Save tab data to disk", func() {
+		d := []ChatTab{}
+		for _, v := range chatTabs {
+			d = append(d, *v)
+		}
+		b, err := xml.Marshal(d)
+		if err != nil {
+			dialog.ShowError(err, w)
+			return
+		}
+		os.Create("test.xml")
+		os.WriteFile("text.xml", b, os.ModeAppend)
+	})
+	menu_help := fyne.NewMenu("π", mit, reconnect, rel, savedata)
 	menu_changeroom := fyne.NewMenu("β", mic, servDisc)
 	menu_configureview := fyne.NewMenu("γ", mia, mis, jtt, jtb)
 	hafjag := fyne.NewMenuItem("Hafjag", func() {
