@@ -58,7 +58,7 @@ As of writing, pi supports basic message sending and receiving, replies, file up
 
 To build pi, you will need the latest version of Go, at least 1.21. You can grab it [here](https://go.dev).
 
-The build instructions are very simple. Simply clone the repo, fetch the repositories and build the program:=.
+The build instructions are very simple. Simply clone the repo, fetch the repositories and build the program.
 
 Here is a summary of the commands you would need to use:
 ```bash
