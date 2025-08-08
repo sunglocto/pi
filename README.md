@@ -1,10 +1,10 @@
 <center>
-<img src="https://github.com/sunglocto/pi/blob/255bc3749c089e3945871ddf19dd17d14a83f9ff/pi.png">
+<img width="100" height="100" src="https://github.com/sunglocto/pi/blob/255bc3749c089e3945871ddf19dd17d14a83f9ff/pi.png">
 </center>
 
-# π
 [![build this now](https://github.com/sunglocto/pi/actions/workflows/go.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/go.yml)
-<img width="1050" height="632" alt="image" src="https://github.com/user-attachments/assets/a5a3a7ab-8a85-49f0-81e9-ae5b977e7455" />
+<img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9e2d9209-6ad5-4f22-94d0-4cc18c835372" />
+
 
 ## the XMPP client from hell
 > it's 10% code. 20% ai
