@@ -58,22 +58,22 @@ As of writing, pi supports basic message sending and receiving, replies, file up
 
 To build pi, you will need the latest version of Go, at least 1.21. You can grab it [here](https://go.dev).
 
-The build instructions are very simple. Simply clone the repo, fetch the repositories and build the program:
+The build instructions are very simple. Simply clone the repo, fetch the repositories and build the program:=.
 
-Here is a summary of the commands you would need to use to build and run the program:
+Here is a summary of the commands you would need to use:
 ```bash
-git clone https://github.com/sunglocto/pi
-cd pi
+git clone https://github.com/sunglocto/pi-im
+cd pi-im
 go mod tidy
 go build .
-./pi
+./pi-im
 ```
 > Uh, Windows???
 
 Eventually. Don't count on it.
 Fyne has first-class support for Windows and all of my dependencies are platform imdependent. I've built this app for Android before. If you compile it, it will most likely work with no issues.
 
-Static executable snapshots are also provided for GNU/Linux systems, and CI runs on every commit, producing a binary on every successful build. You're welcome.
+Static executable snapshots are also provided for GNU/Linux systems on every new version, and CI runs on every commit, producing a binary on every successful build. You're welcome.
 
 ## εγκατάσταση
 (installation)
