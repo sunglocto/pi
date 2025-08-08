@@ -78,7 +78,7 @@ Static executable snapshots are also provided for GNU/Linux systems, and CI runs
 ## εγκατάσταση
 (installation)
 
-Pi currently has no consolidated way of installing it. There is an [Arch User Repository package available](https://aur.archlinux.org/pi-im), which is maintained by [snit](https://isekai.rocks/~snit)
+Pi currently has no consolidated way of installing it. There is an [Arch User Repository package available](https://aur.archlinux.org/pi-im), which is maintained by [snit](https://isekai.rocks/~snit).
 
 ## υποστήριξη
 (support)
