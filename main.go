@@ -7,6 +7,7 @@ import (
 	"image/color"
 	"io"
 	"log"
+	"math/rand/v2"
 	"net/url"
 	"os"
 	"strings"
@@ -24,6 +25,7 @@ import (
 	"github.com/rrivera/identicon"
 
 	// xmpp - required
+	"mellium.im/xmpp/bookmarks"
 	"mellium.im/xmpp/disco"
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
@@ -198,8 +200,7 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 				author.SetText(chatTabs[chatJidStr].Messages[i].Author)
 			}
 
-
-			if strings.Split(msgContent," ")[0] == "/me" {
+			if strings.Split(msgContent, " ")[0] == "/me" {
 				sl := strings.Split(msgContent, " ")
 				sl[0] = ""
 				author.SetText(author.Text + strings.Join(sl, " "))
@@ -218,11 +219,11 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 
 	scroller.CreateItem()
 	myUITab.Scroller = scroller
-			gen, _ := identicon.New("github", 50, 20)
-			ii, _ := gen.Draw(chatJidStr)
-			im := ii.Image(250)
-			imw := canvas.NewImageFromImage(im)
-			imw.FillMode = canvas.ImageFillOriginal
+	gen, _ := identicon.New("github", 50, 20)
+	ii, _ := gen.Draw(chatJidStr)
+	im := ii.Image(250)
+	imw := canvas.NewImageFromImage(im)
+	imw.FillMode = canvas.ImageFillOriginal
 	myUITab.Sidebar = container.NewVBox(imw)
 
 	return myUITab
@@ -549,6 +550,7 @@ func main() {
 
 	entry := widget.NewMultiLineEntry()
 	entry.SetPlaceHolder("Say something, you know you want to.")
+	entry.Wrapping = fyne.TextWrapBreak
 	entry.OnChanged = func(s string) {
 	}
 
@@ -589,7 +591,8 @@ func main() {
 
 			url, uerr := url.Parse(strings.Split(text, " ")[0])
 			if uerr == nil && strings.HasPrefix(strings.Split(text, " ")[0], "https://") {
-				err = client.SendImage(jid.MustParse(activeMucJid).Bare(), text, url.String(), &text)
+				//err = client.SendImage(jid.MustParse(activeMucJid).Bare(), text, url.String(), &text)
+				err = client.SendSingleFileMessage(jid.MustParse(activeMucJid).Bare(), url.String(), nil)
 				if err != nil {
 					dialog.ShowError(err, w)
 				}
@@ -815,7 +818,25 @@ func main() {
 		os.WriteFile("text.xml", b, os.ModeAppend)
 	})
 	menu_help := fyne.NewMenu("π", mit, reconnect, savedata)
-	menu_changeroom := fyne.NewMenu("Α", mic, servDisc)
+
+	joinroom := fyne.NewMenuItem("Join a room", func() {
+		go func() {
+			itr := bookmarks.Fetch(client.Ctx, client.Session)
+			t := false
+			for t {
+				m := itr.Bookmark()
+				if m.Autojoin && strings.Contains(m.JID.String(), "conversations-offtopic") {
+					a.SendNotification(fyne.NewNotification("DEBUG", "yay!"))
+					client.MucClient.Join(client.Ctx, m.JID, client.Session, muc.MaxHistory(0))
+				} else {
+					a.SendNotification(fyne.NewNotification("DEBUG", "nay!"))
+				}
+				t = itr.Next()
+			}
+		}()
+	})
+
+	menu_changeroom := fyne.NewMenu("Α", mic, servDisc, joinroom)
 	menu_configureview := fyne.NewMenu("Β", mia, mis, jtt, jtb)
 	hafjag := fyne.NewMenuItem("Hafjag", func() {
 		entry.Text = "Hafjag"
@@ -829,11 +850,18 @@ func main() {
 		entry.Text = "Oh Yeah."
 	})
 
+	agree := fyne.NewMenuItem("Agree", func() {
+		old := entry.Text
+		entry.Text = strings.Repeat("^", rand.IntN(30))
+		SendCallback()
+		entry.Text = old
+	})
+
 	mycurrenttime := fyne.NewMenuItem("Current time", func() {
 		entry.Text = fmt.Sprintf("It is currently %s", time.Now().Format(time.RFC850))
 		SendCallback()
 	})
-	menu_jokes := fyne.NewMenu("Δ", mycurrenttime, hafjag, hotfuck)
+	menu_jokes := fyne.NewMenu("Δ", mycurrenttime, hafjag, hotfuck, agree)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
 		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
