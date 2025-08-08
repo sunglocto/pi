@@ -58,7 +58,7 @@ type ChatTab struct {
 	Nick          string
 	Messages      []Message
 	isMuc         bool
-	Muc           muc.Channel
+	Muc           *muc.Channel
 	UpdateSidebar bool
 }
 
@@ -166,7 +166,7 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 							dialog.ShowError(err, w)
 							return
 						}
-						if strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp4") {
+						if strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp4") || strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp3") {
 							url, err := url.Parse(chatTabs[chatJidStr].Messages[i].ImageURL)
 							if err != nil {
 								dialog.ShowError(err, w)
@@ -197,6 +197,15 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 			} else {
 				author.SetText(chatTabs[chatJidStr].Messages[i].Author)
 			}
+
+
+			if strings.Split(msgContent," ")[0] == "/me" {
+				sl := strings.Split(msgContent, " ")
+				sl[0] = ""
+				author.SetText(author.Text + strings.Join(sl, " "))
+				content.SetText(" ")
+			}
+
 			scroller.SetItemHeight(i, vbox.MinSize().Height)
 		},
 	)
@@ -209,7 +218,12 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 
 	scroller.CreateItem()
 	myUITab.Scroller = scroller
-	myUITab.Sidebar = container.NewVBox(widget.NewLabel("Data goes here"))
+			gen, _ := identicon.New("github", 50, 20)
+			ii, _ := gen.Draw(chatJidStr)
+			im := ii.Image(250)
+			imw := canvas.NewImageFromImage(im)
+			imw.FillMode = canvas.ImageFillOriginal
+	myUITab.Sidebar = container.NewVBox(imw)
 
 	return myUITab
 }
@@ -353,7 +367,6 @@ func main() {
 						for _, v := range s {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
-								//s[j] = fmt.Sprintf("[%s](%s)", v, v)
 								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
 									img = v
 								}
@@ -408,7 +421,7 @@ func main() {
 			var ImageID string = ""
 			mucJidStr := msg.From.Bare().String()
 			if tab, ok := chatTabs[mucJidStr]; ok {
-				chatTabs[mucJidStr].Muc = *muc
+				chatTabs[mucJidStr].Muc = muc
 				str := *msg.CleanedBody
 				if strings.Contains(str, login.DisplayName) {
 					fmt.Println(str)
@@ -426,8 +439,7 @@ func main() {
 						for _, v := range s {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
-								//s[j] = fmt.Sprintf("[%s](%s)", v, v)
-								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
+								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") || strings.HasSuffix(v, ".mp3") {
 									ImageID = v
 								}
 							}
@@ -731,7 +743,9 @@ func main() {
 				progress := make(chan oasisSdk.UploadProgress)
 				myprogressbar := widget.NewProgressBar()
 				diag := dialog.NewCustom("Uploading file", "Hide", myprogressbar, w)
-				diag.Show()
+				fyne.Do(func() {
+					diag.Show()
+				})
 				go func() {
 					client.UploadFile(client.Ctx, reader.URI().Path(), progress)
 				}()
@@ -801,8 +815,8 @@ func main() {
 		os.WriteFile("text.xml", b, os.ModeAppend)
 	})
 	menu_help := fyne.NewMenu("π", mit, reconnect, savedata)
-	menu_changeroom := fyne.NewMenu("β", mic, servDisc)
-	menu_configureview := fyne.NewMenu("γ", mia, mis, jtt, jtb)
+	menu_changeroom := fyne.NewMenu("Α", mic, servDisc)
+	menu_configureview := fyne.NewMenu("Β", mia, mis, jtt, jtb)
 	hafjag := fyne.NewMenuItem("Hafjag", func() {
 		entry.Text = "Hafjag"
 		SendCallback()
@@ -819,7 +833,7 @@ func main() {
 		entry.Text = fmt.Sprintf("It is currently %s", time.Now().Format(time.RFC850))
 		SendCallback()
 	})
-	menu_jokes := fyne.NewMenu("Δ", mycurrenttime, hafjag, hotfuck)
+	menu_jokes := fyne.NewMenu("δ", mycurrenttime, hafjag, hotfuck)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
 		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
@@ -868,7 +882,7 @@ func main() {
 		pre.Refresh()
 		dialog.ShowCustom("Message", "Close", pre, w)
 	})
-	menu_messageoptions := fyne.NewMenu("Σ", bit, bia, bic)
+	menu_messageoptions := fyne.NewMenu("Γ", bit, bia, bic)
 	ma := fyne.NewMainMenu(menu_help, menu_changeroom, menu_configureview, menu_messageoptions, menu_jokes)
 	w.SetMainMenu(ma)
 
@@ -916,10 +930,14 @@ func main() {
 		}
 
 		chatSidebar = *UITab.Sidebar
+		old := chatSidebar.Position()
 		chatSidebar.Refresh()
+		chatSidebar.Move(old)
 	}
 
+	// HACK - disable chatsidebar because it's currently very buggy
+	chatSidebar.Hidden = true
 	statBar.SetText("")
-	w.SetContent(container.NewVSplit(container.NewVSplit(container.NewHSplit(AppTabs, &chatSidebar), container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar, &chatInfo)))
+	w.SetContent(container.NewVSplit(container.NewVSplit(AppTabs, container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar, &chatInfo)))
 	w.ShowAndRun()
 }
