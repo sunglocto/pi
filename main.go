@@ -833,7 +833,7 @@ func main() {
 		entry.Text = fmt.Sprintf("It is currently %s", time.Now().Format(time.RFC850))
 		SendCallback()
 	})
-	menu_jokes := fyne.NewMenu("δ", mycurrenttime, hafjag, hotfuck)
+	menu_jokes := fyne.NewMenu("Δ", mycurrenttime, hafjag, hotfuck)
 	bit := fyne.NewMenuItem("mark selected message as read", func() {
 		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
@@ -924,7 +924,7 @@ func main() {
 		tab := chatTabs[activeChatJid]
 		UITab := UITabs[activeChatJid]
 		if tab.isMuc {
-			chatInfo = *container.NewHBox(widget.NewLabel(tab.Muc.Addr().String()))
+			//chatInfo = *container.NewHBox(widget.NewLabel(tab.Muc.Addr().String()))
 		} else {
 			chatInfo = *container.NewHBox(widget.NewLabel(tab.Jid.String()))
 		}
