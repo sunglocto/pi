@@ -42,6 +42,8 @@ var statBar widget.Label
 var chatInfo fyne.Container
 var chatSidebar fyne.Container
 
+var agreesToSendingHotFuckIntoChannel bool = false
+
 // by sunglocto
 // license AGPL
 
@@ -53,6 +55,7 @@ type Message struct {
 	ImageURL  string
 	Raw       oasisSdk.XMPPChatMessage
 	Important bool
+	Readers   []jid.JID
 }
 
 type ChatTab struct {
@@ -528,7 +531,19 @@ func main() {
 			fmt.Printf("Delivered %s to %s", id, from.String())
 		},
 		func(_ *oasisSdk.XmppClient, from jid.JID, id string) {
-			fmt.Printf("%s has seen %s", from.String(), id)
+			for _, tab := range chatTabs {
+				for i := len(tab.Messages) - 1; i >= 0; i-- {
+					fmt.Println(tab.Messages[i])
+					if tab.Messages[i].Raw.StanzaID == nil {
+						continue
+					}
+					if tab.Messages[i].Raw.StanzaID.ID == id {
+						tab.Messages[i].Readers = append(tab.Messages[i].Readers, from)
+						break
+					}
+				}
+			}
+			fmt.Printf("%s has seen %s\n", from.String(), id)
 		},
 	)
 	if err != nil {
@@ -726,9 +741,9 @@ func main() {
 
 	})
 
-	//deb := fyne.NewMenuItem("DEBUG: Attempt to get MAM history from a user", func() {
-	//res, err := history.Fetch(client.Ctx, history.Query{}, jid.MustParse("ringen@muc.isekai.rocks"), client.Session)
-	//})
+	deb := fyne.NewMenuItem("DEBUG: Attempt to get avatar from PubSub", func() {
+
+	})
 	mic := fyne.NewMenuItem("upload a file", func() {
 		var link string
 		var toperr error
@@ -825,7 +840,7 @@ func main() {
 		os.Create("test.xml")
 		os.WriteFile("text.xml", b, os.ModeAppend)
 	})
-	menu_help := fyne.NewMenu("π", mit, reconnect, savedata)
+	menu_help := fyne.NewMenu("π", mit, reconnect, savedata, deb)
 
 	joinroom := fyne.NewMenuItem("Join a room", func() {
 		go func() {
@@ -853,14 +868,21 @@ func main() {
 	})
 
 	hotfuck := fyne.NewMenuItem("Hot Fuck", func() {
-		dialog.ShowConfirm("WARNING", "This button will send the message \"Hot Fuck\" into your currently focused chat. Do you want to continue?", func(b bool) {
+		d := dialog.NewConfirm("WARNING", "This button will send the message \"Hot Fuck\" into your currently focused chat. Do you want to continue?", func(b bool) {
 			if b {
-
+				agreesToSendingHotFuckIntoChannel = true
 				entry.Text = "Hot Fuck"
 				SendCallback()
 				entry.Text = "Oh Yeah."
 			}
 		}, w)
+
+		if agreesToSendingHotFuckIntoChannel {
+			d.Confirm()
+		} else {
+			d.Show()
+		}
+
 	})
 
 	agree := fyne.NewMenuItem("Agree", func() {
@@ -923,7 +945,44 @@ func main() {
 		pre.Refresh()
 		dialog.ShowCustom("Message", "Close", pre, w)
 	})
-	menu_messageoptions := fyne.NewMenu("Γ", bit, bia, bic)
+
+	red := fyne.NewMenuItem("show people who have read this message", func() {
+		pre := container.NewVBox()
+
+		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
+		if !ok {
+			return
+		}
+
+		var activeChatJid string
+		for jid, tabData := range UITabs {
+			if tabData.Scroller == selectedScroller {
+				activeChatJid = jid
+				break
+			}
+		}
+		gen, _ := identicon.New("github", 5, 3)
+		m := chatTabs[activeChatJid].Messages[selectedId].Readers
+		for _, v := range m {
+			if chatTabs[activeChatJid].isMuc {
+				ii, _ := gen.Draw(v.Resourcepart())
+				im := ii.Image(25)
+				iw := canvas.NewImageFromImage(im)
+				iw.FillMode = canvas.ImageFillOriginal
+				pre.Add(container.NewHBox(iw, widget.NewLabel(v.Resourcepart())))
+			} else {
+				ii, _ := gen.Draw(v.Localpart())
+				im := ii.Image(25)
+				iw := canvas.NewImageFromImage(im)
+				iw.FillMode = canvas.ImageFillOriginal
+				pre.Add(container.NewHBox(iw, widget.NewLabel(v.Localpart())))
+			}
+		}
+		pre.Refresh()
+		dialog.ShowCustom("Message", "Close", pre, w)
+	})
+
+	menu_messageoptions := fyne.NewMenu("Γ", bit, bia, bic, red)
 	ma := fyne.NewMainMenu(menu_help, menu_changeroom, menu_configureview, menu_messageoptions, menu_jokes)
 	w.SetMainMenu(ma)
 
