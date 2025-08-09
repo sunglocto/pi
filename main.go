@@ -200,10 +200,9 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 				author.SetText(chatTabs[chatJidStr].Messages[i].Author)
 			}
 
-			if strings.Split(msgContent, " ")[0] == "/me" {
-				sl := strings.Split(msgContent, " ")
-				sl[0] = ""
-				author.SetText(author.Text + strings.Join(sl, " "))
+			sl := strings.Split(msgContent, " ")
+			if sl[0] == "/me" {
+				author.SetText(author.Text + strings.Join(sl[1:], " "))
 				content.SetText(" ")
 			}
 
