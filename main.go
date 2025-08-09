@@ -4,7 +4,7 @@ import (
 	//core - required
 	"encoding/xml"
 	"fmt"
-	"image/color"
+	_ "image/color"
 	"io"
 	"log"
 	"math/rand/v2"
@@ -29,10 +29,8 @@ import (
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
 	oasisSdk "pain.agency/oasis-sdk"
-
 	// gui - optional
 	// catppuccin "github.com/mbaklor/fyne-catppuccin"
-	adwaita "fyne.io/x/fyne/theme"
 	// TODO: integrated theme switcher
 )
 
@@ -73,35 +71,35 @@ type ChatTabUI struct {
 }
 
 type CustomMultiLineEntry struct {
-    widget.Entry
+	widget.Entry
 }
 
 func NewCustomMultiLineEntry() *CustomMultiLineEntry {
-    entry := &CustomMultiLineEntry{}
-    entry.ExtendBaseWidget(entry)
-    entry.MultiLine = true
-    return entry
+	entry := &CustomMultiLineEntry{}
+	entry.ExtendBaseWidget(entry)
+	entry.MultiLine = true
+	return entry
 }
 
 func (e *CustomMultiLineEntry) TypedShortcut(sc fyne.Shortcut) {
 
-        // Custom shortcut: Ctrl+Enter for newline
-        if sc.ShortcutName() == "CustomDesktop:Control+Return" {
-					e.Entry.TypedRune('\n')
-					return
-				} 
-				e.Entry.TypedShortcut(sc)
+	// Custom shortcut: Ctrl+Enter for newline
+	if sc.ShortcutName() == "CustomDesktop:Control+Return" {
+		e.Entry.TypedRune('\n')
+		return
+	}
+	e.Entry.TypedShortcut(sc)
 }
 
 func (e *CustomMultiLineEntry) TypedKey(ev *fyne.KeyEvent) {
-    if ev.Name == fyne.KeyReturn || ev.Name == fyne.KeyEnter {
-        // Normal Enter (no modifier) = submit
-        if e.OnSubmitted != nil {
-            e.OnSubmitted(e.Text)
-        }
-    } else {
-        e.Entry.TypedKey(ev)
-    }
+	if ev.Name == fyne.KeyReturn || ev.Name == fyne.KeyEnter {
+		// Normal Enter (no modifier) = submit
+		if e.OnSubmitted != nil {
+			e.OnSubmitted(e.Text)
+		}
+	} else {
+		e.Entry.TypedKey(ev)
+	}
 }
 
 type piConfig struct {
@@ -123,7 +121,10 @@ var replying bool = false
 var notifications bool
 var connection bool = true
 
-type myTheme struct{}
+/*
+func (m myTheme) Font(style fyne.TextStyle) fyne.Resource {
+	return resourceAppleColorEmojiTtf
+}
 
 func (m myTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
 	return adwaita.AdwaitaTheme().Color(name, fyne.CurrentApp().Settings().ThemeVariant())
@@ -133,16 +134,11 @@ func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
 	return theme.DefaultTheme().Icon(name)
 }
 
+/*
 func (m myTheme) Font(style fyne.TextStyle) fyne.Resource {
 	return theme.DefaultTheme().Font(style)
 }
-
-func (m myTheme) Size(name fyne.ThemeSizeName) float32 {
-	if name == theme.SizeNameHeadingText {
-		return 18
-	}
-	return theme.DefaultTheme().Size(name)
-}
+*/
 
 var scrollDownOnNewMessage bool = true
 var w fyne.Window
@@ -244,7 +240,7 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 
 			sl := strings.Split(msgContent, " ")
 			if sl[0] == "/me" {
-				author.SetText(author.Text + strings.Join(sl[1:], " "))
+				author.SetText(author.Text + " " + strings.Join(sl[1:], " "))
 				content.SetText(" ")
 			}
 
@@ -599,7 +595,7 @@ func main() {
 	}()
 
 	a = app.New()
-	a.Settings().SetTheme(myTheme{})
+	//a.Settings().SetTheme(myTheme{})
 	w = a.NewWindow("pi")
 	w.Resize(fyne.NewSize(500, 500))
 
@@ -835,6 +831,30 @@ func main() {
 		}, w)
 	})
 
+	joinARoom := fyne.NewMenuItem("Join a room", func() {
+		dialog.ShowEntryDialog("Join a room", "JID:", func(s string) {
+			go func() {
+				myjid, err := jid.Parse(s)
+				if err != nil {
+					dialog.ShowError(err, w)
+					return
+				}
+				joinjid, err := myjid.WithResource(login.DisplayName)
+				if err != nil {
+					dialog.ShowError(err, w)
+					return
+				}
+				ch, err := client.MucClient.Join(client.Ctx, joinjid, client.Session)
+				if err != nil {
+					dialog.ShowError(err, w)
+					return
+				}
+				client.MucChannels[s] = ch
+				addChatTab(true, myjid, login.DisplayName)
+			}()
+		}, w)
+	})
+
 	servDisc := fyne.NewMenuItem("Disco features", func() {
 		var search jid.JID
 		dialog.ShowEntryDialog("Disco features", "JID: ", func(s string) { // TODO: replace with undeprecated widget
@@ -876,7 +896,7 @@ func main() {
 	})
 	menu_help := fyne.NewMenu("π", mit, reconnect, savedata)
 
-	menu_changeroom := fyne.NewMenu("Α", mic, servDisc)
+	menu_changeroom := fyne.NewMenu("Α", mic, servDisc, joinARoom)
 	menu_configureview := fyne.NewMenu("Β", mia, mis, jtt, jtb)
 	hafjag := fyne.NewMenuItem("Hafjag", func() {
 		entry.Text = "Hafjag"
