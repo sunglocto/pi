@@ -37,7 +37,7 @@ import (
 	// TODO: integrated theme switcher
 )
 
-var version string = "3.14a"
+var version string = "3.142a"
 var statBar widget.Label
 var chatInfo fyne.Container
 var chatSidebar fyne.Container
@@ -162,25 +162,33 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 			if chatTabs[chatJidStr].Messages[i].ImageURL != "" {
 				btn.Hidden = false
 				btn.OnTapped = func() {
-					fyne.Do(func() {
+					go func() {
 						u, err := storage.ParseURI(chatTabs[chatJidStr].Messages[i].ImageURL)
 						if err != nil {
-							dialog.ShowError(err, w)
+							fyne.Do(func() {
+								dialog.ShowError(err, w)
+							})
 							return
 						}
 						if strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp4") || strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp3") {
 							url, err := url.Parse(chatTabs[chatJidStr].Messages[i].ImageURL)
 							if err != nil {
-								dialog.ShowError(err, w)
+								fyne.Do(func() {
+									dialog.ShowError(err, w)
+								})
 								return
 							}
-							a.OpenURL(url)
+							fyne.Do(func() {
+								a.OpenURL(url)
+							})
 							return
 						}
 						image := canvas.NewImageFromURI(u)
 						image.FillMode = canvas.ImageFillOriginal
-						dialog.ShowCustom("Image", "Close", image, w)
-					})
+						fyne.Do(func() {
+							dialog.ShowCustom("Image", "Close", image, w)
+						})
+					}()
 				}
 			}
 			// Check if the message is a quote
@@ -409,14 +417,14 @@ func main() {
 				if v.XMLName.Local == "delay" { // Classic history message
 					//ignore = true
 					//fmt.Println("ignoring!")
-					return //what is blud doing
+					//return //what is blud doing
 				}
 			}
 
 			for _, v := range msg.Unknown {
 				if v.XMLName.Local == "replace" {
 					correction = true
-					break // dont need to look at more fields 
+					break // dont need to look at more fields
 				}
 			}
 
@@ -552,8 +560,7 @@ func main() {
 	entry := widget.NewMultiLineEntry()
 	entry.SetPlaceHolder("Say something, you know you want to.")
 	entry.Wrapping = fyne.TextWrapBreak
-	entry.OnChanged = func(s string) {
-	}
+	//entry.TypedShortcut()
 
 	SendCallback := func() {
 		text := entry.Text
@@ -846,9 +853,14 @@ func main() {
 	})
 
 	hotfuck := fyne.NewMenuItem("Hot Fuck", func() {
-		entry.Text = "Hot Fuck"
-		SendCallback()
-		entry.Text = "Oh Yeah."
+		dialog.ShowConfirm("WARNING", "This button will send the message \"Hot Fuck\" into your currently focused chat. Do you want to continue?", func(b bool) {
+			if b {
+
+				entry.Text = "Hot Fuck"
+				SendCallback()
+				entry.Text = "Oh Yeah."
+			}
+		}, w)
 	})
 
 	agree := fyne.NewMenuItem("Agree", func() {

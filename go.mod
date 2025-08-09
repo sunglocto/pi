@@ -7,7 +7,7 @@ require (
 	fyne.io/x/fyne v0.0.0-20250418202416-58a230ad1acb
 	github.com/rrivera/identicon v0.0.0-20240116195454-d5ba35832c0d
 	mellium.im/xmpp v0.22.0
-	pain.agency/oasis-sdk v0.0.0-20250805092722-ede7355bc2e8
+	pain.agency/oasis-sdk v0.0.0-20250808203123-f4b5bab7b040
 )
 
 require (
