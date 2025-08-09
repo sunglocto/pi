@@ -25,7 +25,6 @@ import (
 	"github.com/rrivera/identicon"
 
 	// xmpp - required
-	"mellium.im/xmpp/bookmarks"
 	"mellium.im/xmpp/disco"
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
@@ -73,6 +72,38 @@ type ChatTabUI struct {
 	Sidebar  *fyne.Container `xml:"-"`
 }
 
+type CustomMultiLineEntry struct {
+    widget.Entry
+}
+
+func NewCustomMultiLineEntry() *CustomMultiLineEntry {
+    entry := &CustomMultiLineEntry{}
+    entry.ExtendBaseWidget(entry)
+    entry.MultiLine = true
+    return entry
+}
+
+func (e *CustomMultiLineEntry) TypedShortcut(sc fyne.Shortcut) {
+
+        // Custom shortcut: Ctrl+Enter for newline
+        if sc.ShortcutName() == "CustomDesktop:Control+Return" {
+					e.Entry.TypedRune('\n')
+					return
+				} 
+				e.Entry.TypedShortcut(sc)
+}
+
+func (e *CustomMultiLineEntry) TypedKey(ev *fyne.KeyEvent) {
+    if ev.Name == fyne.KeyReturn || ev.Name == fyne.KeyEnter {
+        // Normal Enter (no modifier) = submit
+        if e.OnSubmitted != nil {
+            e.OnSubmitted(e.Text)
+        }
+    } else {
+        e.Entry.TypedKey(ev)
+    }
+}
+
 type piConfig struct {
 	Login         oasisSdk.LoginInfo
 	DMs           []string
@@ -95,7 +126,7 @@ var connection bool = true
 type myTheme struct{}
 
 func (m myTheme) Color(name fyne.ThemeColorName, variant fyne.ThemeVariant) color.Color {
-	return adwaita.AdwaitaTheme().Color(name, variant)
+	return adwaita.AdwaitaTheme().Color(name, fyne.CurrentApp().Settings().ThemeVariant())
 }
 
 func (m myTheme) Icon(name fyne.ThemeIconName) fyne.Resource {
@@ -572,8 +603,8 @@ func main() {
 	w = a.NewWindow("pi")
 	w.Resize(fyne.NewSize(500, 500))
 
-	entry := widget.NewMultiLineEntry()
-	entry.SetPlaceHolder("Say something, you know you want to.")
+	entry := NewCustomMultiLineEntry()
+	entry.SetPlaceHolder("Say something, you know you want to.\nCtrl+Enter for newline")
 	entry.Wrapping = fyne.TextWrapBreak
 	//entry.TypedShortcut()
 
@@ -605,6 +636,7 @@ func main() {
 		go func() {
 			if replying {
 				m := chatTabs[activeMucJid].Messages[selectedId].Raw
+				fmt.Println(selectedId)
 				err = client.ReplyToEvent(&m, text)
 				if err != nil {
 					dialog.ShowError(err, w)
@@ -644,6 +676,11 @@ func main() {
 	}
 
 	sendbtn := widget.NewButton("Send", SendCallback)
+	replybtn := widget.NewButton("Reply", func() {
+		replying = true
+		SendCallback()
+		replying = false
+	})
 	entry.OnSubmitted = func(s string) {
 		SendCallback()
 		// i fucking hate fyne
@@ -741,9 +778,6 @@ func main() {
 
 	})
 
-	deb := fyne.NewMenuItem("DEBUG: Attempt to get avatar from PubSub", func() {
-
-	})
 	mic := fyne.NewMenuItem("upload a file", func() {
 		var link string
 		var toperr error
@@ -840,26 +874,9 @@ func main() {
 		os.Create("test.xml")
 		os.WriteFile("text.xml", b, os.ModeAppend)
 	})
-	menu_help := fyne.NewMenu("π", mit, reconnect, savedata, deb)
+	menu_help := fyne.NewMenu("π", mit, reconnect, savedata)
 
-	joinroom := fyne.NewMenuItem("Join a room", func() {
-		go func() {
-			itr := bookmarks.Fetch(client.Ctx, client.Session)
-			t := false
-			for t {
-				m := itr.Bookmark()
-				if m.Autojoin && strings.Contains(m.JID.String(), "conversations-offtopic") {
-					a.SendNotification(fyne.NewNotification("DEBUG", "yay!"))
-					client.MucClient.Join(client.Ctx, m.JID, client.Session, muc.MaxHistory(0))
-				} else {
-					a.SendNotification(fyne.NewNotification("DEBUG", "nay!"))
-				}
-				t = itr.Next()
-			}
-		}()
-	})
-
-	menu_changeroom := fyne.NewMenu("Α", mic, servDisc, joinroom)
+	menu_changeroom := fyne.NewMenu("Α", mic, servDisc)
 	menu_configureview := fyne.NewMenu("Β", mia, mis, jtt, jtb)
 	hafjag := fyne.NewMenuItem("Hafjag", func() {
 		entry.Text = "Hafjag"
@@ -1038,6 +1055,6 @@ func main() {
 	// HACK - disable chatsidebar because it's currently very buggy
 	chatSidebar.Hidden = true
 	statBar.SetText("")
-	w.SetContent(container.NewVSplit(container.NewVSplit(AppTabs, container.NewHSplit(entry, sendbtn)), container.NewHSplit(&statBar, &chatInfo)))
+	w.SetContent(container.NewVSplit(container.NewVSplit(AppTabs, container.NewHSplit(entry, container.NewGridWithRows(1, sendbtn, replybtn))), container.NewHSplit(&statBar, &chatInfo)))
 	w.ShowAndRun()
 }
