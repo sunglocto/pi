@@ -407,7 +407,7 @@ func main() {
 			correction := false
 			important := false
 			for _, v := range msg.Unknown {
-				if v.XMLName.Local == "delay" { // CLasic history message
+				if v.XMLName.Local == "delay" { // Clasic history message
 					//ignore = true
 					//fmt.Println("ignoring!")
 				}
