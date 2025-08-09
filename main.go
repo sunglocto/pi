@@ -410,12 +410,14 @@ func main() {
 				if v.XMLName.Local == "delay" { // CLasic history message
 					//ignore = true
 					//fmt.Println("ignoring!")
+					return //what is blud doing
 				}
 			}
 
 			for _, v := range msg.Unknown {
 				if v.XMLName.Local == "replace" {
 					correction = true
+					break // dont need to look at more fields 
 				}
 			}
 
