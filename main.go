@@ -23,6 +23,7 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"github.com/rrivera/identicon"
+	extraWidgets "fyne.io/x/fyne/widget"
 
 	// xmpp - required
 	"mellium.im/xmpp/disco"
@@ -833,24 +834,37 @@ func main() {
 
 	joinARoom := fyne.NewMenuItem("Join a room", func() {
 		dialog.ShowEntryDialog("Join a room", "JID:", func(s string) {
+			i := resourcePiloadingGif
+			gif, err := extraWidgets.NewAnimatedGifFromResource(i)
+			if err != nil {
+				panic(err)
+			}
+			gif.Start()
+			gif.Show()
+			d := dialog.NewCustom("Please wait", "Close", gif, w)
+			d.Show()
 			go func() {
 				myjid, err := jid.Parse(s)
 				if err != nil {
+					d.Hide()
 					dialog.ShowError(err, w)
 					return
 				}
 				joinjid, err := myjid.WithResource(login.DisplayName)
 				if err != nil {
+					d.Hide()
 					dialog.ShowError(err, w)
 					return
 				}
 				ch, err := client.MucClient.Join(client.Ctx, joinjid, client.Session)
 				if err != nil {
+					d.Hide()
 					dialog.ShowError(err, w)
 					return
 				}
 				client.MucChannels[s] = ch
 				addChatTab(true, myjid, login.DisplayName)
+				d.Hide()
 			}()
 		}, w)
 	})
