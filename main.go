@@ -83,8 +83,6 @@ func NewCustomMultiLineEntry() *CustomMultiLineEntry {
 }
 
 func (e *CustomMultiLineEntry) TypedShortcut(sc fyne.Shortcut) {
-
-	// Custom shortcut: Ctrl+Enter for newline
 	if sc.ShortcutName() == "CustomDesktop:Control+Return" {
 		e.Entry.TypedRune('\n')
 		return
@@ -286,9 +284,15 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 
 	chatTabs[chatJidStr] = &myChatTab
 	UITabs[chatJidStr] = &myUITab
+	var icon fyne.Resource
+	if isMuc {
+		icon = theme.HomeIcon()
+} else{
+		icon = theme.AccountIcon()
+	}
 
 	fyne.Do(func() {
-		AppTabs.Append(container.NewTabItem(chatJid.String(), myUITab.Scroller))
+		AppTabs.Append(container.NewTabItemWithIcon(chatJid.String(), icon, myUITab.Scroller))
 	})
 }
 
@@ -539,7 +543,7 @@ func main() {
 			case oasisSdk.ChatStatePaused:
 
 				fyne.Do(func() {
-					statBar.SetText(fmt.Sprintf("%s has stoped typing.", from.Resourcepart()))
+					statBar.SetText(fmt.Sprintf("%s has stopped typing.", from.Resourcepart()))
 				})
 			case oasisSdk.ChatStateInactive:
 				fyne.Do(func() {
@@ -832,6 +836,24 @@ func main() {
 		}, w)
 	})
 
+	leaveRoom := fyne.NewMenuItem("Leave current room (experimental)", func() {
+		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
+		if !ok {
+			return
+		}
+		var activeMucJid string
+		for jid, tabData := range UITabs {
+			if tabData.Scroller == selectedScroller {
+				activeMucJid = jid
+				break
+			}
+		}
+		AppTabs.Selected().Text = fmt.Sprintf("%s (disconnected)", AppTabs.Selected().Text)
+		AppTabs.SelectIndex(0)
+		delete(client.MucChannels, activeMucJid)
+		//delete(chatTabs, activeMucJid)
+	})
+
 	joinARoom := fyne.NewMenuItem("Join a room", func() {
 		dialog.ShowEntryDialog("Join a room", "JID:", func(s string) {
 			i := resourcePiloadingGif
@@ -869,6 +891,31 @@ func main() {
 		}, w)
 	})
 
+	beginADM := fyne.NewMenuItem("Start a DM", func() {
+		dialog.ShowEntryDialog("Start a DM", "JID:", func(s string) {
+			i := resourcePiloadingGif
+			gif, err := extraWidgets.NewAnimatedGifFromResource(i)
+			if err != nil {
+				panic(err)
+			}
+			gif.Start()
+			gif.Show()
+			d := dialog.NewCustom("Please wait", "Close", gif, w)
+			d.Show()
+			go func() {
+				myjid, err := jid.Parse(s)
+				if err != nil {
+					d.Hide()
+					dialog.ShowError(err, w)
+					return
+				}
+				addChatTab(false, myjid, login.DisplayName)
+				d.Hide()
+			}()
+		}, w)
+
+	})
+
 	servDisc := fyne.NewMenuItem("Disco features", func() {
 		var search jid.JID
 		dialog.ShowEntryDialog("Disco features", "JID: ", func(s string) { // TODO: replace with undeprecated widget
@@ -878,7 +925,7 @@ func main() {
 				return
 			}
 
-			myBox := container.NewGridWithColumns(1, widget.NewLabel("Items\na\na\na\na\na"))
+			myBox := container.NewGridWithColumns(1, widget.NewLabel("Items"))
 			info, err := disco.GetInfo(client.Ctx, "", search, client.Session)
 			if err != nil {
 				dialog.ShowError(err, w)
@@ -910,7 +957,7 @@ func main() {
 	})
 	menu_help := fyne.NewMenu("π", mit, reconnect, savedata)
 
-	menu_changeroom := fyne.NewMenu("Α", mic, servDisc, joinARoom)
+	menu_changeroom := fyne.NewMenu("Α", mic, servDisc, beginADM, joinARoom, leaveRoom)
 	menu_configureview := fyne.NewMenu("Β", mia, mis, jtt, jtb)
 	hafjag := fyne.NewMenuItem("Hafjag", func() {
 		entry.Text = "Hafjag"
@@ -970,7 +1017,7 @@ func main() {
 	})
 
 	bic := fyne.NewMenuItem("show message XML", func() {
-		pre := widget.NewLabel("")
+		pre := widget.NewMultiLineEntry()
 
 		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
@@ -992,7 +1039,6 @@ func main() {
 			return
 		}
 		pre.SetText(string(bytes))
-		pre.Selectable = true
 		pre.Refresh()
 		dialog.ShowCustom("Message", "Close", pre, w)
 	})
