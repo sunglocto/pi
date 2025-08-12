@@ -38,7 +38,7 @@ import (
 	// TODO: integrated theme switcher
 )
 
-var version string = "3.142a"
+var version string = "3i"
 var statBar widget.Label
 var chatInfo fyne.Container
 var chatSidebar fyne.Container
