@@ -10,7 +10,6 @@ import (
 	"math/rand/v2"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -33,7 +32,6 @@ import (
 	oasisSdk "pain.agency/oasis-sdk"
 
 	// gui - optional
-	webview "github.com/webview/webview_go"
 	// catppuccin "github.com/mbaklor/fyne-catppuccin"
 	// TODO: integrated theme switcher
 )
@@ -44,7 +42,6 @@ var chatInfo fyne.Container
 var chatSidebar fyne.Container
 
 var agreesToSendingHotFuckIntoChannel bool = false
-var agreesToLoadingYouTube bool = false
 
 // by sunglocto
 // license AGPL
@@ -205,22 +202,6 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 						}
 
 
-						if strings.HasPrefix(chatTabs[chatJidStr].Messages[i].ImageURL, "https://youtube.com") {
-							fyne.Do(func() {
-								go func() {
-									e := regexp.MustCompile(`(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)(?P<video_id>[a-zA-Z0-9_-]{11})`)
-									f := e.ReplaceAllString(chatTabs[chatJidStr].Messages[i].ImageURL, "https://youtube.com/watch?v=${video_id}")
-									fmt.Println(f)
-									w := webview.New(false)
-									w.SetTitle("YouTube window")
-									w.SetSize(480, 320, webview.HintNone)
-									w.Navigate(f)
-									w.Run()
-									w.Destroy()
-								}()
-							})
-							return
-						}
 
 						if strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp4") || strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp3") || strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "gif") || strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "webp") { // FIXME: This code is fucking terrible // TODO: Could check mime?
 							url, err := url.Parse(chatTabs[chatJidStr].Messages[i].ImageURL)
@@ -440,7 +421,7 @@ func main() {
 						for _, v := range s {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
-								if strings.HasPrefix(v, "https://youtube.com") || strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") || strings.HasSuffix(v, ".gif") {
+								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") || strings.HasSuffix(v, ".gif") {
 									img = v
 								}
 							}
@@ -529,7 +510,7 @@ func main() {
 						for _, v := range s {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
-								if strings.HasPrefix(v, "https://youtube.com") || strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") || strings.HasSuffix(v, ".mp3") || strings.HasSuffix(v, ".gif") {
+								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") || strings.HasSuffix(v, ".mp3") || strings.HasSuffix(v, ".gif") {
 									ImageID = v
 								}
 							}
