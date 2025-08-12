@@ -24,7 +24,7 @@ jobs:
           pkg install -y node
         run: |
           go version
-          go build .
+          go build -buildvcs=false .
           ls
           git clone https://github.com/actions/upload-artifact.git
           node ./upload-artifact/dist/index.js -n pi-binary-freebsd -p pi-im
