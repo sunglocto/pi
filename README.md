@@ -70,10 +70,13 @@ go build .
 ```
 > Uh, Windows???
 
-Eventually. Don't count on it.
-Fyne has first-class support for Windows and all of my dependencies are platform imdependent. I've built this app for Android before. If you compile it, it will most likely work with no issues.
+The commands above should be virtually identical, aside from changing `./pi-im` to `pi-im.exe`. If you compile it, it will most likely work with no issues:
+<img width="1627" height="1022" alt="image" src="https://github.com/user-attachments/assets/5a6c188f-e890-4398-856c-e88f5804e9d2" />
 
-Static executable snapshots are also provided for GNU/Linux systems on every new version, and CI runs on every commit, producing a binary on every successful build. You're welcome.
+
+Static executable snapshots are also provided for GNU/Linux systems on every new version, and CI runs on every commit, producing a binary on every successful build, for Linux, Windows and MacOS.
+
+You're welcome.
 
 ## εγκατάσταση
 (installation)
