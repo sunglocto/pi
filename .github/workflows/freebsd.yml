@@ -28,4 +28,8 @@ jobs:
           go build -buildvcs=false .
           ls
           git clone https://github.com/actions/upload-artifact.git
+          cd upload-artifact
+          npm install
+          npm run build
+          cd ..
           node ./upload-artifact/dist/index.js -n pi-binary-freebsd -p pi-im
