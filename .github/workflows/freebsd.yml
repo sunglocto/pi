@@ -32,5 +32,6 @@ jobs:
           cd upload-artifact
           npm install
           npm run build
+          ls -l dist
           cd ..
           node ./upload-artifact/dist/index.js -n pi-binary-freebsd -p pi-im
