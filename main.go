@@ -10,6 +10,7 @@ import (
 	"math/rand/v2"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -22,15 +23,17 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
-	"github.com/rrivera/identicon"
 	extraWidgets "fyne.io/x/fyne/widget"
+	"github.com/rrivera/identicon"
 
 	// xmpp - required
 	"mellium.im/xmpp/disco"
 	"mellium.im/xmpp/jid"
 	"mellium.im/xmpp/muc"
 	oasisSdk "pain.agency/oasis-sdk"
+
 	// gui - optional
+	webview "github.com/webview/webview_go"
 	// catppuccin "github.com/mbaklor/fyne-catppuccin"
 	// TODO: integrated theme switcher
 )
@@ -41,6 +44,7 @@ var chatInfo fyne.Container
 var chatSidebar fyne.Container
 
 var agreesToSendingHotFuckIntoChannel bool = false
+var agreesToLoadingYouTube bool = false
 
 // by sunglocto
 // license AGPL
@@ -199,7 +203,26 @@ func CreateUITab(chatJidStr string) ChatTabUI {
 							})
 							return
 						}
-						if strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp4") || strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp3") {
+
+
+						if strings.HasPrefix(chatTabs[chatJidStr].Messages[i].ImageURL, "https://youtube.com") {
+							fyne.Do(func() {
+								go func() {
+									e := regexp.MustCompile(`(?:https?:\/\/)?(?:www\.)?(?:m\.)?(?:youtube\.com|youtu\.be)\/(?:watch\?v=|embed\/|v\/|)(?P<video_id>[a-zA-Z0-9_-]{11})`)
+									f := e.ReplaceAllString(chatTabs[chatJidStr].Messages[i].ImageURL, "https://youtube.com/watch?v=${video_id}")
+									fmt.Println(f)
+									w := webview.New(false)
+									w.SetTitle("YouTube window")
+									w.SetSize(480, 320, webview.HintNone)
+									w.Navigate(f)
+									w.Run()
+									w.Destroy()
+								}()
+							})
+							return
+						}
+
+						if strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp4") || strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "mp3") || strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "gif") || strings.HasSuffix(chatTabs[chatJidStr].Messages[i].ImageURL, "webp") { // FIXME: This code is fucking terrible // TODO: Could check mime?
 							url, err := url.Parse(chatTabs[chatJidStr].Messages[i].ImageURL)
 							if err != nil {
 								fyne.Do(func() {
@@ -287,7 +310,7 @@ func addChatTab(isMuc bool, chatJid jid.JID, nick string) {
 	var icon fyne.Resource
 	if isMuc {
 		icon = theme.HomeIcon()
-} else{
+	} else {
 		icon = theme.AccountIcon()
 	}
 
@@ -393,15 +416,22 @@ func main() {
 	client, err := oasisSdk.CreateClient(
 		&login,
 		func(client *oasisSdk.XmppClient, msg *oasisSdk.XMPPChatMessage) {
-			fmt.Println(msg)
+			correction := false
 			userJidStr := msg.From.Bare().String()
 			tab, ok := chatTabs[userJidStr]
-			fmt.Println(msg.From.String())
 			if ok {
 				str := *msg.CleanedBody
 				if notifications {
 					a.SendNotification(fyne.NewNotification(fmt.Sprintf("%s says", userJidStr), str))
 				}
+
+				for _, v := range msg.Unknown {
+					if v.XMLName.Local == "replace" {
+						correction = true
+						break // dont need to look at more fields
+					}
+				}
+
 				var img string = ""
 				if strings.Contains(str, "https://") {
 					lines := strings.Split(str, "\n")
@@ -410,7 +440,7 @@ func main() {
 						for _, v := range s {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
-								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") {
+								if strings.HasPrefix(v, "https://youtube.com") || strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") || strings.HasSuffix(v, ".gif") {
 									img = v
 								}
 							}
@@ -425,6 +455,19 @@ func main() {
 				} else {
 					replyID = msg.Reply.ID
 				}
+
+				if correction {
+					for i := len(tab.Messages) - 1; i > 0; i-- {
+						if tab.Messages[i].Raw.From.String() == msg.From.String() {
+							tab.Messages[i].Content = *msg.CleanedBody + " (edited)"
+							fyne.Do(func() {
+								UITabs[userJidStr].Scroller.Refresh()
+							})
+							return
+						}
+					}
+				}
+
 				myMessage := Message{
 					Author:   msg.From.Resourcepart(),
 					Content:  str,
@@ -448,8 +491,10 @@ func main() {
 			ignore := false
 			correction := false
 			important := false
+			donotnotify := false
 			for _, v := range msg.Unknown {
 				if v.XMLName.Local == "delay" { // Classic history message
+					donotnotify = true
 					//ignore = true
 					//fmt.Println("ignoring!")
 					//return //what is blud doing
@@ -472,7 +517,7 @@ func main() {
 					fmt.Println(str)
 					important = true
 				}
-				if !ignore && notifications {
+				if !donotnotify && !ignore && notifications {
 					if !correction && msg.From.String() != client.JID.String() && strings.Contains(str, login.DisplayName) || (msg.Reply != nil && strings.Contains(msg.Reply.To, login.DisplayName)) {
 						a.SendNotification(fyne.NewNotification(fmt.Sprintf("Mentioned in %s", mucJidStr), str))
 					}
@@ -484,7 +529,7 @@ func main() {
 						for _, v := range s {
 							_, err := url.Parse(v)
 							if err == nil && strings.HasPrefix(v, "https://") {
-								if strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") || strings.HasSuffix(v, ".mp3") {
+								if strings.HasPrefix(v, "https://youtube.com") || strings.HasSuffix(v, ".png") || strings.HasSuffix(v, ".jpg") || strings.HasSuffix(v, ".jpeg") || strings.HasSuffix(v, ".webp") || strings.HasSuffix(v, ".mp4") || strings.HasSuffix(v, ".mp3") || strings.HasSuffix(v, ".gif") {
 									ImageID = v
 								}
 							}
@@ -735,6 +780,7 @@ func main() {
 			return
 		}
 		selectedScroller.ScrollToBottom()
+		selectedScroller.Refresh()
 	})
 
 	jtt := fyne.NewMenuItem("jump to top", func() {
@@ -743,6 +789,7 @@ func main() {
 			return
 		}
 		selectedScroller.ScrollToTop()
+		selectedScroller.Refresh()
 	})
 
 	w.SetOnDropped(func(p fyne.Position, u []fyne.URI) {
