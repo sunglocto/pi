@@ -1045,8 +1045,7 @@ func main() {
 	})
 
 	bic := fyne.NewMenuItem("show message XML", func() {
-		pre := widget.NewMultiLineEntry()
-
+		pre := widget.NewLabel("")
 		selectedScroller, ok := AppTabs.Selected().Content.(*widget.List)
 		if !ok {
 			return
@@ -1067,6 +1066,7 @@ func main() {
 			return
 		}
 		pre.SetText(string(bytes))
+		pre.Selectable = true
 		pre.Refresh()
 		dialog.ShowCustom("Message", "Close", pre, w)
 	})
