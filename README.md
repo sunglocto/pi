@@ -2,7 +2,10 @@
 <img width="100" height="100" src="https://github.com/sunglocto/pi/blob/255bc3749c089e3945871ddf19dd17d14a83f9ff/pi.png">
 </center>
 
-[![build this now](https://github.com/sunglocto/pi/actions/workflows/go.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/go.yml)
+[![Linux](https://github.com/sunglocto/pi/actions/workflows/linux.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/linux.yml)
+[![Windows](https://github.com/sunglocto/pi/actions/workflows/windows.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/windows.yml)
+[![Darwin](https://github.com/sunglocto/pi/actions/workflows/macos.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/macos.yml)
+[![FreeBSD](https://github.com/sunglocto/pi/actions/workflows/freebsd.yml/badge.svg)](https://github.com/sunglocto/pi/actions/workflows/freebsd.yml)
 <img width="1920" height="1080" alt="image" src="https://github.com/user-attachments/assets/9e2d9209-6ad5-4f22-94d0-4cc18c835372" />
 
 
