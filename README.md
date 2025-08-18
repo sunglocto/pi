@@ -81,6 +81,19 @@ Static executable snapshots are also provided for GNU/Linux systems on every new
 
 You're welcome.
 
+## Wayland
+On BSD and Linux systems, you may want to build an executable for Wayland only, meaning it will not run through XWayland. This will increase performance and also allow drag-on-drop functionality. Most Wayland setups can run X11 apps, but no X11 setup can run Wayland apps. Because of this, all executables are shipped for use with X11. This may change in the future, but if you want to build for Wayland, it's as simple as the commands above, but just adding a `wayland` tag to the build command.
+
+A Wayland-only executable will also substantially decrease the level of screen tearing and lag.
+
+```bash
+git clone https://github.com/sunglocto/pi-im
+cd pi-im
+go mod tidy
+go build -tags wayland .
+./pi-im
+```
+
 ## εγκατάσταση
 (installation)
 
@@ -92,6 +105,29 @@ Pi currently has no consolidated way of installing it. There is an [Arch User Re
 You can file an issue and explain the problem you are having.
 
 If you would like a more instant method of communication, join the [pi XMPP room.](xmpp:pi@room.sunglocto.net?join)
+
+
+## αρμονία
+(compatibility)
+
+Pi has guaranteed support for the following operating systems:
+- Windows 10 and up
+- Most modern GNU/Linux installations
+
+Pi has experimental support for the following operating system:
+- Android
+
+Pi has not been tested on, but has been built on, the following operating systems:
+- FreeBSD
+- MacOS
+
+Pi most likely does **not** have support for the following operating systems:
+- Other BSDs
+- 32-bit systems
+- iOS
+
+
+If you use Pi on a specific operating system and it does not work, file an issue and describe the problem you have having.
 
 ## μαρτυρίες
 (testimonials)
