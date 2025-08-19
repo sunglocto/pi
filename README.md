@@ -1,3 +1,6 @@
+# REPOSITORY HAS MOVED
+Pi is now being developed on my [Gitea forge](https://forge.sunglocto.net/sunglocto/pi-im).
+
 <center>
 <img width="100" height="100" src="https://github.com/sunglocto/pi/blob/255bc3749c089e3945871ddf19dd17d14a83f9ff/pi.png">
 </center>
